@@ -30,18 +30,18 @@ import emdash.emhandlers
 class UploadConfig(emdash.config.Config):
     applicationname = "EMDashUpload"
     def add_options(self, parser):
-        parser.add_argument("--session_protocol", "-t", 
+        parser.add_argument("--session_protocol", "-t",
             help="Session type. Available: base, microscopy, scan")
-        self.defaults['session_protocol'] = 'microscopy'    
-        
+        self.defaults['session_protocol'] = 'microscopy'
+
         # These get no default.
-        parser.add_argument("--handler", "-r", 
+        parser.add_argument("--handler", "-r",
             help="Handler. Examples: ccd, ddd, micrograph")
-        parser.add_argument("--microscope", "-m", 
+        parser.add_argument("--microscope", "-m",
             help="Microscope or Microscope folder Record name")
-        parser.add_argument("--target", 
+        parser.add_argument("--target",
             help="Specify upload target directly.")
-        parser.add_argument("--watch", 
+        parser.add_argument("--watch",
             help="Watch directory for files to upload")
 
 def main(appclass=None, configclass=None):
@@ -52,17 +52,17 @@ def main(appclass=None, configclass=None):
     app = QtGui.QApplication(sys.argv)
     window = appclass()
     window.request_login(emdash.config.get('username'), emdash.config.get('password'))
-    sys.exit(app.exec_())    
-    
+    sys.exit(app.exec_())
+
 ##############################
 # Some dialogs: Warning, Login, ...
 ##############################
 
 def confirm(parent=None, title='Confirm', text=''):
     reply = QtGui.QMessageBox.question(
-        parent, 
+        parent,
         title,
-        text, 
+        text,
         QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
         QtGui.QMessageBox.No
         )
@@ -75,7 +75,7 @@ def confirm(parent=None, title='Confirm', text=''):
 class Options(QtGui.QDialog):
     def __init__(self, parent=None):
         self.widgets = {}
-        QtGui.QDialog.__init__(self, parent=parent)        
+        QtGui.QDialog.__init__(self, parent=parent)
         self.ui = emdash.ui.Ui_Options.Ui_Options()
         self.ui.setupUi(self)
         self.setupUi()
@@ -83,9 +83,9 @@ class Options(QtGui.QDialog):
     def _addhr(self, layout):
         hr = QtGui.QFrame()
         hr.setFrameShape(QtGui.QFrame.HLine)
-        hr.setFrameShadow(QtGui.QFrame.Sunken)        
+        hr.setFrameShadow(QtGui.QFrame.Sunken)
         layout.addRow(hr)
-    
+
     def _addtext(self, layout, text):
         q = QtGui.QLabel()
         q.setTextFormat(QtCore.Qt.RichText)
@@ -104,30 +104,30 @@ class Options(QtGui.QDialog):
 
         f = self.ui.layout_options
         f.addRow("Host:", self.widgets['host'])
-        self._addtext(f, """The address to the EMEN2 server.""")        
+        self._addtext(f, """The address to the EMEN2 server.""")
         self._addhr(f)
         f.addRow("Handler:", self.widgets['handler'])
         self._addtext(f, """EMDash provides special handlers for some specific data acquisition packages. Use "ccd" for DM3, "ddd" for Direct Electron Detector, "serielem" for Seriel EM, and "jadas" for JADAS. If no handler is specified, EMDash will attempt to select one automatically based on file type.""")
         self._addhr(f)
         f.addRow("Session protocol:", self.widgets['session_protocol'])
-        self._addtext(f, """This is the protocol that will be used when creating a new session. The default, "microscopy", is a protocol for a generic electron microscope. You may change this to a protocol that is specific to the instrument you are using.""")        
+        self._addtext(f, """This is the protocol that will be used when creating a new session. The default, "microscopy", is a protocol for a generic electron microscope. You may change this to a protocol that is specific to the instrument you are using.""")
         f.addRow("Microscope:", self.widgets['microscope'])
         self._addtext(f, """This is the record ID for the microscope. New sessions will be created as children of this record. EMDash will also check for child record with date-specific configuration.""")
         self._addhr(f)
         self._addtext(f, """You must restart EMDash for changes to take effect. EMDash will quit when you save this form.""")
-        
+
     def accept(self):
         ret = {}
         for k,v in self.widgets.items():
             value = unicode(v.text())
             # Write to the config file.
             emdash.config.config.write(k, value)
-        self.done(0)        
+        self.done(0)
         sys.exit(0)
-    
+
 class DWarning(QtGui.QDialog):
     def __init__(self, displayname=None, session=None, parent=None):
-        QtGui.QDialog.__init__(self, parent=parent)        
+        QtGui.QDialog.__init__(self, parent=parent)
         self.ui = emdash.ui.Ui_Warning.Ui_Warning()
         self.ui.setupUi(self)
         self.ui.label_user.setText(unicode(displayname))
@@ -140,13 +140,13 @@ class DWarning(QtGui.QDialog):
 
 class Login(QtGui.QDialog):
     # Login signals
-    signal_trylogin = QtCore.pyqtSignal(unicode, unicode)    
+    signal_trylogin = QtCore.pyqtSignal(unicode, unicode)
     signal_login = QtCore.pyqtSignal()
     signal_login_exception = QtCore.pyqtSignal(unicode)
     signal_logout = QtCore.pyqtSignal()
 
     def __init__(self, authmsg=None, parent=None):
-        QtGui.QDialog.__init__(self, parent=parent)        
+        QtGui.QDialog.__init__(self, parent=parent)
         self.ui = emdash.ui.Ui_Login.Ui_Login()
         self.ui.setupUi(self)
 
@@ -159,7 +159,7 @@ class Login(QtGui.QDialog):
         if authmsg:
             self.ui.label_login.setText(authmsg)
         else:
-            self.ui.label_login.setText('Login: %s'%emdash.config.get('host'))            
+            self.ui.label_login.setText('Login: %s'%emdash.config.get('host'))
 
     @QtCore.pyqtSlot()
     def ok(self):
@@ -169,13 +169,13 @@ class Login(QtGui.QDialog):
     def error(self, e):
         self.ui.label_login.setText(e)
 
-    def accept(self):        
+    def accept(self):
         self.ui.label_login.setText("Logging in...")
-        
+
         # Attempt to login
         self.signal_trylogin.emit(
             unicode(self.ui.edit_name.text()),
-            unicode(self.ui.edit_password.text()))    
+            unicode(self.ui.edit_password.text()))
 
         self.ui.edit_password.clear()
 
@@ -206,14 +206,14 @@ class Login(QtGui.QDialog):
     def showlogin(self, username=None, password=None):
         if username != None and password != None:
             return self.login(username, password)
-            
+
         if username:
             self.ui.edit_name.setText(username)
         if password:
             self.ui.edit_password.setText(password)
 
         self.show()
-        
+
     def showoptions(self):
         l = Options(parent=self)
         l.show()
@@ -226,7 +226,7 @@ class BaseTransport(QtGui.QMainWindow):
     # Base class for an Upload UI
     ui = emdash.ui.Ui_Upload.Ui_Upload
     worker = emdash.emthreads.UploadThread
-    
+
     # Session controls
     signal_begin_session = QtCore.pyqtSignal()
     signal_end_session = QtCore.pyqtSignal()
@@ -236,7 +236,7 @@ class BaseTransport(QtGui.QMainWindow):
     signal_newfile = QtCore.pyqtSignal(unicode, object)
     signal_status = QtCore.pyqtSignal(unicode, object)
     signal_exception = QtCore.pyqtSignal(unicode)
-    
+
     # Files
     signal_set_path = QtCore.pyqtSignal(unicode, bool, bool)
 
@@ -249,33 +249,33 @@ class BaseTransport(QtGui.QMainWindow):
         super(BaseTransport, self).__init__(parent=parent)
 
         # File / queue
-        self.path = None        
-        self.end = False        
+        self.path = None
+        self.end = False
 
         # Current targets
         self.files = {}
         self.names = {}
         self.target = None
-        
+
         # Cache
         self.recs = {}
         self.recnames = {}
         self.settings = {}
-        
+
         # Listen for progress events.
         emdash.log.add_listener(self.log_listener)
-        
+
         ###### Queue
         self.queue = Queue.Queue()
         self.queuemodel = emdash.emmodels.QueueModel(
-            parent=self, 
-            headers=self.headers, 
+            parent=self,
+            headers=self.headers,
             headernames=self.headernames)
-        
+
         ###### Setup UI
         self.ui = self.ui()
         self.ui.setupUi(self)
-        
+
         ###### Worker threads
         # Starts when a new session is made
         self.clockthread = emdash.emthreads.ClockThread()
@@ -308,12 +308,12 @@ class BaseTransport(QtGui.QMainWindow):
 
         # File control widget
         self.ui.tree_files.signal_set.connect(self.set, type=QtCore.Qt.QueuedConnection)
-        self.ui.tree_files.signal_enqueue.connect(self.enqueue, type=QtCore.Qt.QueuedConnection)    
+        self.ui.tree_files.signal_enqueue.connect(self.enqueue, type=QtCore.Qt.QueuedConnection)
         self.ui.tree_files.prog_column(len(self.headers)-1)
         self.ui.tree_files.setModel(self.queuemodel)
         for count, width in enumerate(self.headerwidths or []):
             self.ui.tree_files.setColumnWidth(count, width)
-        
+
         self.init()
 
     def init(self):
@@ -354,7 +354,7 @@ class BaseTransport(QtGui.QMainWindow):
 
         if self.target:
             rnget.append(self.target)
-        
+
         try:
             recs = emdash.config.db().record.get(rnget)
         except Exception, e:
@@ -374,13 +374,13 @@ class BaseTransport(QtGui.QMainWindow):
             ready = True
         else:
             ready = False
-            
-        try:    
+
+        try:
             self.ui.button_path.setEnabled(ready)
         except:
             pass
         try:
-            self.ui.label_grid.setText(self.getlabel(name=self.target))        
+            self.ui.label_grid.setText(self.getlabel(name=self.target))
         except:
             pass
 
@@ -398,6 +398,9 @@ class BaseTransport(QtGui.QMainWindow):
         if name:
             self.signal_status.emit(name, {'_status':status})
 
+    def log(self, *args, **kwargs):
+        print args
+
     ###############################
     # Editing records / Comments
     ###############################
@@ -407,7 +410,7 @@ class BaseTransport(QtGui.QMainWindow):
         # print "Setting:", name, param, value
         if name < 0:
             self.signal_exception.emit("Cannot update non-existent record")
-            return        
+            return
 
         try:
             rec = emdash.config.db().record.update(name, {unicode(param): unicode(value)})
@@ -419,13 +422,13 @@ class BaseTransport(QtGui.QMainWindow):
 
         if param == 'comments':
             self.update_comments()
-            
+
     @QtCore.pyqtSlot()
     def update_comments(self):
         pass
 
     @QtCore.pyqtSlot(object, object)
-    def edit_records(self, editrecords, selectrecords):        
+    def edit_records(self, editrecords, selectrecords):
         try:
             updrecs = emdash.config.db().record.put(editrecords)
         except Exception, e:
@@ -437,10 +440,10 @@ class BaseTransport(QtGui.QMainWindow):
             self.recs[rec.get('name')] = rec
             self.names[rec.get('rectype')] = rec.get('name')
             self.signal_status.emit(unicode(rec.get('name')), rec)
-            
+
         # this is an ugly hack
-        self._check_target()    
-        
+        self._check_target()
+
         # Update the UI
         self.update_ui()
 
@@ -493,29 +496,29 @@ class BaseTransport(QtGui.QMainWindow):
         self.signal_begin_session.emit()
         if emdash.config.get('target'):
             self.set_target(emdash.config.get('target'))
-            
-    @QtCore.pyqtSlot()    
+
+    @QtCore.pyqtSlot()
     def end_session(self):
         emdash.log.msg("Logging out!")
         emdash.config.db().auth.logout()
         self.close()
-    
-    @QtCore.pyqtSlot(str)    
+
+    @QtCore.pyqtSlot(str)
     def tock(self, t):
         # Update session clock
         target = self.names.get(emdash.config.get('session_protocol'))
         if t == None:
             t = ""
         elif target > -1:
-            t = """<a href="%s/record/%s/?ctxid=%s">%s</a>"""%(emdash.config.get('host'), target, emdash.config.get('ctxid'), t)    
+            t = """<a href="%s/record/%s/?ctxid=%s">%s</a>"""%(emdash.config.get('host'), target, emdash.config.get('ctxid'), t)
         else:
-            t = """<a href="%s?ctxid=%s">%s</a>"""%(emdash.config.get('host'), emdash.config.get('ctxid'), t)    
+            t = """<a href="%s?ctxid=%s">%s</a>"""%(emdash.config.get('host'), emdash.config.get('ctxid'), t)
         self.ui.label_session.setText(t)
 
     #####################
     # Event handlers
     #####################
-    
+
     def closeEvent(self, event):
         accept = confirm(parent=self, title="Logout", text="Are you sure you want to logout? Any pending transfers will be cancelled.")
         if accept:
@@ -532,8 +535,8 @@ class BaseTransport(QtGui.QMainWindow):
     def _select_target_wizard(self):
         wizard = emdash.emwizard.SelectAnyWizard(parent=self, selected=self.names)
         wizard.signal_any.connect(self.set_target, type=QtCore.Qt.QueuedConnection)
-        wizard.exec_()         
-                
+        wizard.exec_()
+
     @QtCore.pyqtSlot()
     def _name_target_wizard(self):
         d = QtGui.QInputDialog(self)
@@ -544,10 +547,10 @@ class BaseTransport(QtGui.QMainWindow):
     #####################
     # Misc.
     #####################
-            
+
     def getlabel(self, name=None, rectypes=None):
         """return the name/recname link for the first rectype found"""
-        
+
         if not name:
             if not hasattr(rectypes, "__iter__"):
                 rectypes = [rectypes]
@@ -565,7 +568,7 @@ class BaseTransport(QtGui.QMainWindow):
         edit = getattr(self.ui, 'edit_%s'%i)
         slider.sliderMoved.connect(functools.partial(self._slider_to_edit, target=edit, factor=factor), type=QtCore.Qt.QueuedConnection)
         edit.textChanged.connect(functools.partial(self._edit_to_slider, target=slider, factor=factor), type=QtCore.Qt.QueuedConnection)
-        edit.textChanged.connect(functools.partial(self.set_setting, param=i), type=QtCore.Qt.QueuedConnection)        
+        edit.textChanged.connect(functools.partial(self.set_setting, param=i), type=QtCore.Qt.QueuedConnection)
 
     def _slider_to_edit(self, i, target=None, factor=1.0):
         try:
@@ -579,7 +582,7 @@ class BaseTransport(QtGui.QMainWindow):
             i = float(i) * factor
         except:
             i = 0
-        target.setValue(int(float(i or 0)))    
+        target.setValue(int(float(i or 0)))
 
 class BaseUpload(BaseTransport):
     def init(self):
@@ -588,7 +591,7 @@ class BaseUpload(BaseTransport):
         sp_existing = functools.partial(self._set_path, existing=True, watch=False)
         sp = functools.partial(self._set_path, existing=False, watch=False)
 
-        self.ui.button_path.addAction(QtGui.QAction("Select directory", self, triggered=sp_existing_watch))        
+        self.ui.button_path.addAction(QtGui.QAction("Select directory", self, triggered=sp_existing_watch))
         self.ui.button_path.addAction(QtGui.QAction("Select directory, new files only", self, triggered=sp_watch))
         # self.ui.button_path.addAction(QtGui.QAction("Select directory, existing files only", self, triggered=sp_existing))
         self.ui.button_path.addAction(QtGui.QAction("Add files", self, triggered=self._add_files))
@@ -603,7 +606,7 @@ class BaseUpload(BaseTransport):
     @QtCore.pyqtSlot(unicode)
     def addcomment(self, rectype):
         # Add a comment to a known record
-        comment = self.ui.edit_addcomment.toPlainText()    
+        comment = self.ui.edit_addcomment.toPlainText()
 
         name = self.names.get(rectype, -1)
         if name < 0:
@@ -624,7 +627,7 @@ class BaseUpload(BaseTransport):
         d = QtGui.QFileDialog(self)
         d.setFileMode(QtGui.QFileDialog.ExistingFiles)
         d.filesSelected.connect(self.fspollthread.founds, type=QtCore.Qt.QueuedConnection)
-        d.filesSelected.connect(self.fspollthread.start, type=QtCore.Qt.QueuedConnection)                
+        d.filesSelected.connect(self.fspollthread.start, type=QtCore.Qt.QueuedConnection)
         d.exec_()
 
     @QtCore.pyqtSlot()
@@ -650,16 +653,16 @@ class BaseUpload(BaseTransport):
         #     if os.path.exists(jsonfile):
         #         data = json.load(file(jsonfile,"r")) or {}
         #         emdash.log.msg("found: %s already uploaded to record: %s"%(f, data.get('name')))
-        #         found[f] = data.get('name')                
-        #     
+        #         found[f] = data.get('name')
+        #
         # if existing and found:
         #     text = 'Found %s files that have already been uploaded (see console for details.) These files will be skipped and not uploaded again. To re-upload these files, remove the json files to clear the references.\n\nContinue?'%len(found)
         #     accept = confirm(parent=self, title="Warning", text=text)
         # else:
         #     accept = True
-        # 
+        #
         # if not accept:
-        #     return 
+        #     return
         self.ui.label_path.setText(unicode(path))
         self.signal_set_path.emit(unicode(path), existing, watch)
 
