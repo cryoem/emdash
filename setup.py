@@ -15,5 +15,10 @@ if __name__ == "__main__":
             'emdash',
             'emdash.ui'
             ],
-        scripts=['scripts/emen2client.py', 'scripts/emdash_microscopy.py', 'scripts/emdash_upload.py']
+        scripts=[
+            'scripts/emen2client.py',
+            'scripts/emdash_environment.py',
+            'scripts/emdash_microscopy.py',
+            'scripts/emdash_upload.py'
+            ]
         )
