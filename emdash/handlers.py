@@ -1,6 +1,5 @@
 import collections
 import copy
-import glob
 import math
 import os
 import struct
@@ -341,3 +340,55 @@ class AutoHandler(FileHandler):
             # emdash.log.error("No handler found for file %s, extension: %s"%(name, ext))
             handler = FileHandler
         return handler(name=name, data=data, *args, **kwargs)
+
+##### CSV Specific File Handler #####
+
+@Handler.register('csv')
+class CSVHandler(FileHandler):
+
+    def upload(self):
+        self.log("\n--- Starting upload: %s ---"%self.name)
+        self.log("Checking for previously uploaded files...")
+
+        # Check CSV
+        check = self.sidecar_read(self.name)
+        if check.get('name'):
+            self.log("File already exists in database -- check %s"%check.get('name'))
+            return check
+
+        # Wait a small amount of time before completing (default=0)
+        if self.wait:
+            self.log("Waiting %s seconds before proceeding"%self.wait)
+            time.sleep(self.wait)
+
+        # Data to upload
+        fileobj = open(self.name, "rb")
+
+        # This upload method will always create a new record for each file.
+        target = self.target or self.data.get('_target')
+
+        # New record request
+        qs = {}
+        qs['_format'] = 'csv'
+        qs['ctxid'] = emdash.config.get('ctxid')
+        qs['date_occurred'] = filetime(self.name)
+        for k,v in self.data.items():
+            if not k.startswith('_'):
+                qs[k] = v
+
+        # File to upload
+        qs[self.param] = fileobj
+
+        # Extract metadata...
+        qs.update(self.extract())
+        
+        # Try to upload. Creates a new record.
+        path = '/record/%s/new/%s/'%(target, self.rectype)
+        # ... default is PUT -- much faster, less memory.
+        rec = self._upload_put(path, qs)
+
+        # Write out the sidecar file.
+        self.sidecar_write(self.name, {"name":rec.get('name')})
+
+        # Return the updated (or new) record..
+        return rec
