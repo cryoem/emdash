@@ -40,8 +40,7 @@ def main():
 
 	samples = []
 
-	fn = "/home/pi/logs/{}_{}.csv".format(this.date(),this.hour)
-	log = EMSensorLog(fn)
+	log = EMSensorLog()
 	
 	while True:
 		this = datetime.now()
@@ -66,12 +65,8 @@ def main():
 			if record["temperature_ambient_avg"] > high_temp:
 				sense.high_temp_alert(record["temperature_ambient_avg"])
 			if record["humidity_ambient_avg"] > high_humid:
-				sense.high_humid_alert(record["humidity_ambient_avg"])
-			
-			os.unlink(fn)
-			fn = "/home/pi/logs/{}_{}.csv".format(this.date(),this.hour)
-			log = EMSensorLog(fn) # create new log
-			
+				sense.high_humid_alert(record["humidity_ambient_avg"])			
+			log = EMSensorLog() # create new logs
 			last["hour"] = this.hour
 		
 		# Every day
@@ -81,7 +76,8 @@ def main():
 class EMSensorLog:
 
 	def __init__(self,filename):
-		self.filename = filename
+		n = datetime.now()
+		self.filename = "/home/pi/logs/{}_{}.csv".format(n.date(),n.hour)
 		header = ["timestamp","temperature","humidity","pressure"]
 		if not os.path.isfile(self.filename):
 			with open(self.filename,"w") as f:
@@ -133,6 +129,12 @@ class EMSensorLog:
 		rec["comments"] = "testing"
 		
 		record = db.record.put(rec)
+		
+		# handle csv upload
+		
+		# remove local file after upload complete
+		os.unlink(self.filename)
+		
 		return record
 
 class EMSenseHat(SenseHat):
