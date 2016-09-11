@@ -10,23 +10,25 @@ import emdash.config
 
 def main():
 	config = emdash.config.Config()
+	this = datetime.now()
 	
+	print("Init: {}".format(this))
 	print("Host: {}".format(config.get("host")))
-	print("User: pi@raspberrypi")
+	print("User: {}".format(config.get("username")))
 	print("Protocol: {}".format(config.get("session_protocol")))
 
 	username = config.get("username")
 	password = config.get("password")
-	
 	db = config.login(username,password)
 	suite = db.record.get(config.get("suite"))
 	
-	print("Record #{} ({})".format(config.get("suite"),suite["suite_name"]))
+	print("Record #{}".format(config.get("suite")))
+	print("Name: {}".format(suite["suite_name"]))
+	sys.stdout.flush()
 
 	sense = EMSenseHat()
 	sense.clear()
 
-	this = datetime.now()
 	last = {}
 	last["second"] = int(this.second)
 	last["minute"] = int(this.minute)
