@@ -54,8 +54,8 @@ def main():
 		if this.minute != last["minute"]:
 			avg = np.mean(samples,axis=0)
 			log.write(avg)
+			samples = []
 			last["minute"] = this.minute
-			to_average = []
 		
 		# Every hour
 		if this.hour != last["hour"] and this.hour != 0:
@@ -65,9 +65,7 @@ def main():
 			if record["humidity_ambient_avg"] > high_humid:
 				sense.high_humid_alert(record["humidity_ambient_avg"])
 			
-			try: os.unlink(fn)
-			except: print("Failed to unlink {}".format(fn))
-			
+			os.unlink(fn)
 			fn = "/home/pi/logs/{}.csv".format(this.date())
 			log = EMSensorLog(fn) # create new log
 			
