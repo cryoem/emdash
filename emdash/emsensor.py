@@ -7,6 +7,7 @@ import numpy as np
 import time
 import emdash.config
 from emdash.handlers import Handler, FileHandler
+import keyring
 
 config = emdash.config.Config()
 config.write("host","http://10.10.10.112:8080")
@@ -15,15 +16,18 @@ config.write("suite","4") #microscope key for record number value?
 config.write("session_protocol","environment")
 
 def main():
-	print("HOST: {}".format(config.get("host")))
-	print("HANDLER: {}".format(config.get("handler")))
-	print("RECORD ID: {}".format(config.get("suite")))
-	print("PROTOCOL: {}".format(config.get("session_protocol")))
+	print("Host: {}".format(config.get("host")))
+	print("User: pi@raspberrypi")
+	#print("Handler: {}".format(config.get("handler")))
+	print("Protocol: {}".format(config.get("session_protocol")))
 	
-	db = config.login("pi@raspberrypi","raspberry")
+	username = "pi@raspberrypi"
+	password = keyring.get_password("emdash",username)
+	db = config.login(username,password) # generic raspberry pi login
 	suite = db.record.get(config.get("suite"))
-	print("SUITE: {}".format(suite["suite_name"]))
 	
+	print("Record ID: {} ({})".format(config.get("suite"),suite["suite_name"]))
+		
 	sense = EMSenseHat()
 	sense.clear()
 
@@ -47,30 +51,42 @@ def main():
 		data = sense.readout()
 		samples.append(data)
 		
+		# Every second
+		
 		if this.second != last["second"]:
 			sense.update_display()
 			time.sleep(1)
+		
+		# Every minute
 		
 		if this.minute != last["minute"]:
 			avg = np.mean(samples,axis=0)
 			log.write(avg)
 			last["minute"] = this.minute
 			to_average = []
-				
+		
+		# Every hour
+		
 		if this.hour != last["hour"] and this.hour != 0:
-			data = log.read()
-			t_avg,h_avg,p_avg = np.mean(data,axis=0)
-			if t_avg > high_temp:
-				sense.high_temp_alert(t_avg[0])
-			if h_avg > high_humid:
-				sense.high_humid_alert(h_avg[1])
-			last["hour"] = this.hour
-
-		if this.day != last["day"]:
-			log.upload(db)
-			#os.unlink(self.filename)
+			record = log.upload(db)
+			if record["temperature_ambient_avg"] > high_temp:
+				sense.high_temp_alert(record["temperature_ambient_avg"])
+			if record["humidity_ambient_avg"] > high_humid:
+				sense.high_humid_alert(record["humidity_ambient_avg"])
+			
+			try:
+				os.unlink(fn)
+			except:
+				print("Failed to unlink {}".format(fn))
+			
 			fn = "/home/pi/SenseLogs/{}.csv".format(this.date())
 			log = EMSensorLog(fn) # create new log
+			
+			last["hour"] = this.hour
+		
+		# Every day
+		
+		if this.day != last["day"]:
 			last["day"] = this.day
 
 class EMSensorLog:
@@ -116,7 +132,6 @@ class EMSensorLog:
 		rec['rectype'] = config.get("session_protocol")
 		rec["date_start_str"] = str(self.start_date)
 		rec["date_end_str"] = str(self.end_date)
-		
 		rec["temperature_ambient_low"] = round(t_low,1)
 		rec["temperature_ambient_high"] = round(t_high,1)
 		rec["temperature_ambient_avg"] = round(t_avg,1)
@@ -128,9 +143,8 @@ class EMSensorLog:
 		rec["pressure_ambient_avg"] = round(p_avg,1)
 		rec["comments"] = "testing"
 		
-		rec = db.record.put(rec)
-		
-		#rec["file_binary"] = # how to upload csv?
+		record = db.record.put(rec)
+		return record
 
 class EMSenseHat(SenseHat):
 
