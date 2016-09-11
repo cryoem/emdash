@@ -5,9 +5,8 @@ from datetime import datetime
 import os
 import numpy as np
 import time
-import emdash.config
-from emdash.handlers import Handler, FileHandler
 import keyring
+import emdash.config
 
 config = emdash.config.Config()
 config.write("host","http://10.10.10.112:8080")
