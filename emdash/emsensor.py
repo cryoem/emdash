@@ -5,28 +5,22 @@ from datetime import datetime
 import os
 import numpy as np
 import time
-import keyring
 import emdash.config
 
-config = emdash.config.Config()
-config.write("host","http://10.10.10.112:8080")
-config.write("handler","csv") #perhaps just "" with no csv handler?
-config.write("suite","4") #microscope key for record number value? 
-config.write("session_protocol","environment")
-
 def main():
+	config = emdash.config.Config()
+	
 	print("Host: {}".format(config.get("host")))
 	print("User: pi@raspberrypi")
-	#print("Handler: {}".format(config.get("handler")))
 	print("Protocol: {}".format(config.get("session_protocol")))
 	
-	username = "pi@raspberrypi"
-	password = keyring.get_password("emdash",username)
+	username = config.get("username")
+	password = config.get("password")
 	
 	db = config.login(username,password) # generic raspberry pi login
 	suite = db.record.get(config.get("suite"))
 	
-	print("Record ID: {} ({})".format(config.get("suite"),suite["suite_name"]))
+	print("Record #{} ({})".format(config.get("suite"),suite["suite_name"]))
 	
 	sense = EMSenseHat()
 	sense.clear()
