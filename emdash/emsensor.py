@@ -3,6 +3,7 @@
 from sense_hat import SenseHat
 from datetime import datetime
 import os
+import sys
 import numpy as np
 import time
 import emdash.config
@@ -13,15 +14,15 @@ def main():
 	print("Host: {}".format(config.get("host")))
 	print("User: pi@raspberrypi")
 	print("Protocol: {}".format(config.get("session_protocol")))
-	
+
 	username = config.get("username")
 	password = config.get("password")
 	
-	db = config.login(username,password) # generic raspberry pi login
+	db = config.login(username,password)
 	suite = db.record.get(config.get("suite"))
 	
 	print("Record #{} ({})".format(config.get("suite"),suite["suite_name"]))
-	
+
 	sense = EMSenseHat()
 	sense.clear()
 
