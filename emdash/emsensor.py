@@ -49,15 +49,14 @@ def main():
 		
 		if this.second != last["second"]:
 			sense.update_display()
-			time.sleep(0.5)
+			time.sleep(1)
 		
 		if this.minute != last["minute"]:
 			avg = np.mean(samples,axis=0)
 			log.write(avg)
 			last["minute"] = this.minute
 			to_average = []
-			log.upload(db) #DEBUG
-		
+				
 		if this.hour != last["hour"] and this.hour != 0:
 			data = log.read()
 			t_avg,h_avg,p_avg = np.mean(data,axis=0)
@@ -107,7 +106,9 @@ class EMSensorLog:
 		t_high,h_high,p_high = np.max(data,axis=0)
 		t_low,h_low,p_low = np.min(data,axis=0)
 		t_avg,h_avg,p_avg = np.mean(data,axis=0)
+		
 		suite = db.record.get(config.get("suite"))
+		
 		rec = {}
 		rec['parents'] = suite['name']
 		rec['groups'] = suite['groups']
@@ -115,6 +116,7 @@ class EMSensorLog:
 		rec['rectype'] = config.get("session_protocol")
 		rec["date_start_str"] = str(self.start_date)
 		rec["date_end_str"] = str(self.end_date)
+		
 		rec["temperature_ambient_low"] = round(t_low,1)
 		rec["temperature_ambient_high"] = round(t_high,1)
 		rec["temperature_ambient_avg"] = round(t_avg,1)
@@ -125,7 +127,9 @@ class EMSensorLog:
 		rec["pressure_ambient_high"] = round(p_high,1)
 		rec["pressure_ambient_avg"] = round(p_avg,1)
 		rec["comments"] = "testing"
+		
 		rec = db.record.put(rec)
+		
 		#rec["file_binary"] = # how to upload csv?
 
 class EMSenseHat(SenseHat):
@@ -135,7 +139,7 @@ class EMSenseHat(SenseHat):
 	OFF_PIXEL=[0,0,0]
 
 	high_temp = 37.7
-	low_temp = 0
+	low_temp = 0.
 
 	def readout(self,rnd=1):
 		T = round(self.temperature,rnd)
