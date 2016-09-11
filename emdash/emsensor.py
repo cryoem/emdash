@@ -40,7 +40,7 @@ def main():
 
 	samples = []
 
-	fn = "/home/pi/logs/{}.csv".format(this.date())
+	fn = "/home/pi/logs/{}_{}.csv".format(this.date(),this.hour)
 	log = EMSensorLog(fn)
 	
 	while True:
@@ -69,7 +69,7 @@ def main():
 				sense.high_humid_alert(record["humidity_ambient_avg"])
 			
 			os.unlink(fn)
-			fn = "/home/pi/logs/{}.csv".format(this.date())
+			fn = "/home/pi/logs/{}_{}.csv".format(this.date(),this.hour)
 			log = EMSensorLog(fn) # create new log
 			
 			last["hour"] = this.hour
