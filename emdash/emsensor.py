@@ -6,6 +6,7 @@ import os
 import numpy as np
 import time
 import emdash.config
+from emdash.handlers import Handler, FileHandler
 
 config = emdash.config.Config()
 config.write("host","http://10.10.10.112:8080")
@@ -55,15 +56,14 @@ def main():
 			log.write(avg)
 			last["minute"] = this.minute
 			to_average = []
+			log.upload(db) #DEBUG
 		
 		if this.hour != last["hour"] and this.hour != 0:
 			data = log.read()
-			#t_high,h_high,p_high = np.max(data,axis=0)
-			#t_low,h_low,p_low = np.min(data,axis=0)
 			t_avg,h_avg,p_avg = np.mean(data,axis=0)
-			if t_avg[0] > high_temp:
+			if t_avg > high_temp:
 				sense.high_temp_alert(t_avg[0])
-			if h_avg[1] > high_humid:
+			if h_avg > high_humid:
 				sense.high_humid_alert(h_avg[1])
 			last["hour"] = this.hour
 
@@ -73,7 +73,6 @@ def main():
 			fn = "/home/pi/SenseLogs/{}.csv".format(this.date())
 			log = EMSensorLog(fn) # create new log
 			last["day"] = this.day
-
 
 class EMSensorLog:
 
@@ -108,16 +107,12 @@ class EMSensorLog:
 		t_high,h_high,p_high = np.max(data,axis=0)
 		t_low,h_low,p_low = np.min(data,axis=0)
 		t_avg,h_avg,p_avg = np.mean(data,axis=0)
-		
-		rec = {}
-		
 		suite = db.record.get(config.get("suite"))
-				
+		rec = {}
 		rec['parents'] = suite['name']
 		rec['groups'] = suite['groups']
 		rec['permissions'] = suite['permissions']
 		rec['rectype'] = config.get("session_protocol")
-		
 		rec["date_start_str"] = str(self.start_date)
 		rec["date_end_str"] = str(self.end_date)
 		rec["temperature_ambient_low"] = round(t_low,1)
@@ -129,10 +124,9 @@ class EMSensorLog:
 		rec["pressure_ambient_low"] = round(p_low,1)
 		rec["pressure_ambient_high"] = round(p_high,1)
 		rec["pressure_ambient_avg"] = round(p_avg,1)
-		#rec["file_binary"] = self.filename
 		rec["comments"] = "testing"
-		
 		rec = db.record.put(rec)
+		#rec["file_binary"] = # how to upload csv?
 
 class EMSenseHat(SenseHat):
 
@@ -169,7 +163,6 @@ class EMSenseHat(SenseHat):
 	def high_temp_alert(self,value):
 		self.show_message("ALERT!")
 		self.show_message("HIGH TEMP: {:0.0f}C".format(value),text_colour=self.ON_T_PIXEL)
-
 
 if __name__ == "__main__":
 	main()
