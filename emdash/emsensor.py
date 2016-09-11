@@ -74,8 +74,6 @@ def main():
 			log = EMSensorLog(fn) # create new log
 			last["day"] = this.day
 
-		log.upload(db)
-		sys.exit(1)
 
 class EMSensorLog:
 
@@ -114,9 +112,7 @@ class EMSensorLog:
 		rec = {}
 		
 		suite = db.record.get(config.get("suite"))
-		
-		print(suite)
-		
+				
 		rec['parents'] = suite['name']
 		rec['groups'] = suite['groups']
 		rec['permissions'] = suite['permissions']
@@ -137,7 +133,6 @@ class EMSensorLog:
 		rec["comments"] = "testing"
 		
 		rec = db.record.put(rec)
-		print(rec)
 
 class EMSenseHat(SenseHat):
 
