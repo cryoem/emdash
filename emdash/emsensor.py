@@ -65,8 +65,8 @@ def main():
 			if record["temperature_ambient_avg"] > high_temp:
 				sense.high_temp_alert(record["temperature_ambient_avg"])
 			if record["humidity_ambient_avg"] > high_humid:
-				sense.high_humid_alert(record["humidity_ambient_avg"])			
-			log = EMSensorLog() # create new logs
+				sense.high_humid_alert(record["humidity_ambient_avg"])
+			log = EMSensorLog()
 			last["hour"] = this.hour
 		
 		# Every day
@@ -75,7 +75,7 @@ def main():
 
 class EMSensorLog:
 
-	def __init__(self,filename):
+	def __init__(self):
 		n = datetime.now()
 		self.filename = "/home/pi/logs/{}_{}.csv".format(n.date(),n.hour)
 		header = ["timestamp","temperature","humidity","pressure"]
