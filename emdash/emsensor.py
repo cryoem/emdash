@@ -22,11 +22,12 @@ def main():
 	
 	username = "pi@raspberrypi"
 	password = keyring.get_password("emdash",username)
+	
 	db = config.login(username,password) # generic raspberry pi login
 	suite = db.record.get(config.get("suite"))
 	
 	print("Record ID: {} ({})".format(config.get("suite"),suite["suite_name"]))
-		
+	
 	sense = EMSenseHat()
 	sense.clear()
 
@@ -42,7 +43,7 @@ def main():
 
 	samples = []
 
-	fn = "/home/pi/SuiteLogs/{}.csv".format(this.date())
+	fn = "/home/pi/logs/{}.csv".format(this.date())
 	log = EMSensorLog(fn)
 	
 	while True:
@@ -51,13 +52,11 @@ def main():
 		samples.append(data)
 		
 		# Every second
-		
 		if this.second != last["second"]:
 			sense.update_display()
 			time.sleep(1)
 		
 		# Every minute
-		
 		if this.minute != last["minute"]:
 			avg = np.mean(samples,axis=0)
 			log.write(avg)
@@ -65,7 +64,6 @@ def main():
 			to_average = []
 		
 		# Every hour
-		
 		if this.hour != last["hour"] and this.hour != 0:
 			record = log.upload(db)
 			if record["temperature_ambient_avg"] > high_temp:
@@ -73,18 +71,15 @@ def main():
 			if record["humidity_ambient_avg"] > high_humid:
 				sense.high_humid_alert(record["humidity_ambient_avg"])
 			
-			try:
-				os.unlink(fn)
-			except:
-				print("Failed to unlink {}".format(fn))
+			try: os.unlink(fn)
+			except: print("Failed to unlink {}".format(fn))
 			
-			fn = "/home/pi/SenseLogs/{}.csv".format(this.date())
+			fn = "/home/pi/logs/{}.csv".format(this.date())
 			log = EMSensorLog(fn) # create new log
 			
 			last["hour"] = this.hour
 		
 		# Every day
-		
 		if this.day != last["day"]:
 			last["day"] = this.day
 
@@ -104,7 +99,7 @@ class EMSensorLog:
 			dat = ",".join([str(round(val,rnd)) for val in data])
 			out = "{},{}\n".format(tstamp,dat)
 			f.write(out)
-		
+	
 	def read(self):
 		data = []
 		with open(self.filename,"r") as f:
