@@ -34,8 +34,8 @@ def main():
 	last["hour"] = int(this.hour)
 	last["day"] = int(this.day)
 
-	high_temp = 25  # alert if temperature > this
-	high_humid = 45 # alert if humidity > this
+	high_temp = 25.  # alert if temperature > this
+	high_humid = 45. # alert if humidity > this
 
 	samples = []
 
