@@ -72,34 +72,32 @@ def main():
 		# Every day
 		if this.day != last["day"]:
 			rec = log.upload(db)
-			log = EMSensorLog(config)
 			last["day"] = this.day
 
 class EMSensorLog:
 
 	def __init__(self,conf):
 		self.start_date = datetime.now()
-		self.filename = "/home/pi/logs/{}.csv".format(self.start_date.date())
-		header = ["timestamp","temperature","humidity","pressure"]
-		if not os.path.isfile(self.filename):
+		self.csv_file = emdash.handlers.FileHandler()
+		self.csv_file.name = "/home/pi/logs/{}.csv".format(self.start_date.date())
+		self.csv_file.rectype = "environment"
+		self.csv_file.param = "file_binary"
+		self.csv_file.target = conf.get("suite")
+		self.csv_file.header = ["timestamp","temperature","humidity","pressure"]
+		if not os.path.isfile(self.csv_file.name):
 			with open(self.filename,"w") as f:
-				f.write("#{}\n".format(",".join(header)))
-		self.csv = emdash.handlers.FileHandler()
-		self.csv.name = self.filename
-		self.csv.rectype = "environment"
-		self.csv.param = "file_binary"
-		self.csv.target = conf.get("suite")
+				f.write("#{}\n".format(",".join(self.csv_file.header)))
 
 	def write(self,data,rnd=1):
 		n = datetime.now()
-		with open(self.filename,"a") as f:
+		with open(self.csv_file.name,"a") as f:
 			dat = ",".join([str(round(val,rnd)) for val in data])
 			out = "{},{}\n".format(n,dat)
 			f.write(out)
 	
 	def read(self):
 		data = []
-		with open(self.filename,"r") as f:
+		with open(self.csv_file.name,"r") as f:
 			for i,l in enumerate(f):
 				if i > 0: # skip header
 					line = l.strip().split(",")
@@ -137,16 +135,22 @@ class EMSensorLog:
 		
 		record = db.record.put(rec)
 		
-		record = self.csv.upload() # csv upload
+		print(record)
+		
+		record = self.csv_file.upload() # csv upload
+		
 		print(record)
 		
 		# remove local file after upload is complete
 		try:
-			os.unlink(self.filename)
+			os.unlink(self.csv_file.name)
 		except:
 			n = datetime.now()
-			print("{}\tWARNING: Failed to remove {}".format(n,self.filename))
+			print("{}\tWARNING: Failed to remove {}".format(n,self.csv_file.name))
 			sys.stdout.flush()
+		
+		self.csv_file.name = "/home/pi/logs/{}.csv".format(self.end_date.date())
+		self.start_date = datetime.now()
 		
 		return record
 
