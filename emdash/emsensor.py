@@ -59,6 +59,11 @@ def main():
 			avg = np.mean(samples,axis=0)
 			log.write(avg)
 			samples = []
+			
+			rec = log.upload(db)
+			print(rec)
+			sys.exit(1)
+			
 			last["minute"] = this.minute
 		
 		# Every hour
@@ -85,7 +90,7 @@ class EMSensorLog:
 		self.csv_file.target = conf.get("suite")
 		self.csv_file.header = ["timestamp","temperature","humidity","pressure"]
 		if not os.path.isfile(self.csv_file.name):
-			with open(self.filename,"w") as f:
+			with open(self.csv_file.name,"w") as f:
 				f.write("#{}\n".format(",".join(self.csv_file.header)))
 
 	def write(self,data,rnd=1):
@@ -120,8 +125,8 @@ class EMSensorLog:
 		rec['groups'] = suite['groups']
 		rec['permissions'] = suite['permissions']
 		rec['rectype'] = config.get("session_protocol")
-		rec["date_start_str"] = self.start_date
-		rec["date_end_str"] = self.end_date
+		rec["date_start_dt"] = self.start_date
+		rec["date_end_dt"] = self.end_date
 		rec["temperature_ambient_low"] = round(t_low,1)
 		rec["temperature_ambient_high"] = round(t_high,1)
 		rec["temperature_ambient_avg"] = round(t_avg,1)
@@ -135,12 +140,8 @@ class EMSensorLog:
 		
 		record = db.record.put(rec)
 		
-		print(record)
-		
 		record = self.csv_file.upload() # csv upload
-		
-		print(record)
-		
+				
 		# remove local file after upload is complete
 		try:
 			os.unlink(self.csv_file.name)
