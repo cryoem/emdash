@@ -62,6 +62,13 @@ def main():
 			samples.append(data)
 			sense.update_display()
 			last["second"] = this.second
+			if this.second % 3 == 0:
+				avg = np.mean(samples,axis=0)
+				log.write(avg)
+				log.write(avg) # add three lines and upload
+				log.write(avg)
+				log.upload(db)
+				sys.exit(1)
 					
 		# Every minute
 		if this.minute != last["minute"]:
@@ -138,6 +145,7 @@ class EMSensorLog:
 		rec["pressure_ambient_high"] = round(p_high,1)
 		rec["pressure_ambient_avg"] = round(p_avg,1)
 		rec["comments"] = ""
+		#rec["file_binary"] = open(self.csv_file.name, "rb")
 		
 		record = db.record.put(rec)
 		
