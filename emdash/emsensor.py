@@ -6,12 +6,18 @@ import os
 import sys
 import numpy as np
 import time
+import dateutil
+import dateutil.tz
+
 import emdash.config
 import emdash.handlers
 
+def gettime():
+    return datetime.now(dateutil.tz.gettz())
+
 def main():
 	config = emdash.config.Config()
-	this = datetime.utcnow()
+	this = gettime()
 	
 	print("Init: {}".format(this))
 	print("Host: {}".format(config.get("host")))
@@ -20,7 +26,8 @@ def main():
 
 	username = config.get("username")
 	password = config.get("password")
-	db = config.login(username,password)
+	db = config.db()
+	db.login(username,password)
 	suite = db.record.get(config.get("suite"))
 	
 	print("Record #{}".format(config.get("suite")))
@@ -45,7 +52,7 @@ def main():
 	log = EMSensorLog(config)
 	
 	while True:
-		this = datetime.utcnow()
+		this = gettime()
 		
 		# Every second
 		if this.second != last["second"]:
@@ -60,6 +67,7 @@ def main():
 			log.write(avg)
 			samples = []
 			
+			# DEBUG
 			rec = log.upload(db)
 			print(rec)
 			sys.exit(1)
@@ -82,7 +90,7 @@ def main():
 class EMSensorLog:
 
 	def __init__(self,conf):
-		self.start_date = datetime.utcnow()
+		self.start_date = gettime()
 		self.csv_file = emdash.handlers.FileHandler()
 		self.csv_file.name = "/home/pi/logs/{}.csv".format(self.start_date.date())
 		self.csv_file.rectype = "environment"
@@ -94,7 +102,7 @@ class EMSensorLog:
 				f.write("#{}\n".format(",".join(self.csv_file.header)))
 
 	def write(self,data,rnd=1):
-		n = datetime.utcnow()
+		n = gettime()
 		with open(self.csv_file.name,"a") as f:
 			dat = ",".join([str(round(val,rnd)) for val in data])
 			out = "{},{}\n".format(n,dat)
@@ -110,7 +118,7 @@ class EMSensorLog:
 		return np.asarray(data).astype(float)
 	
 	def upload(self,db):
-		self.end_date = datetime.utcnow()
+		self.end_date = gettime()
 		data = self.read()
 		
 		t_high,h_high,p_high = np.max(data,axis=0)
@@ -125,8 +133,8 @@ class EMSensorLog:
 		rec['groups'] = suite['groups']
 		rec['permissions'] = suite['permissions']
 		rec['rectype'] = config.get("session_protocol")
-		rec["date_start_dt"] = self.start_date
-		rec["date_end_dt"] = self.end_date
+		rec["date_start_dt"] = self.start_date.isoformat()
+		rec["date_end_dt"] = self.end_date.isoformat()
 		rec["temperature_ambient_low"] = round(t_low,1)
 		rec["temperature_ambient_high"] = round(t_high,1)
 		rec["temperature_ambient_avg"] = round(t_avg,1)
@@ -146,12 +154,12 @@ class EMSensorLog:
 		try:
 			os.unlink(self.csv_file.name)
 		except:
-			n = datetime.utcnow()
+			n = gettime()
 			print("{}\tWARNING: Failed to remove {}".format(n,self.csv_file.name))
 			sys.stdout.flush()
 		
 		self.csv_file.name = "/home/pi/logs/{}.csv".format(self.end_date.date())
-		self.start_date = datetime.utcnow()
+		self.start_date = gettime()
 		
 		return record
 
