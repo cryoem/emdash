@@ -16,20 +16,22 @@ def gettime():
     return datetime.now(dateutil.tz.gettz())
 
 def main():
+	ns = emdash.config.setconfig()
 	config = emdash.config.Config()
-	this = gettime()
 	
+	this = gettime()
 	print("Init: {}".format(this))
 	print("Host: {}".format(config.get("host")))
 	print("User: {}".format(config.get("username")))
 	print("Protocol: {}".format(config.get("session_protocol")))
 
-	username = config.get("username")
-	password = config.get("password")
 	db = config.db()
-	db.login(username,password)
-	suite = db.record.get(config.get("suite"))
+	ctxid = db.login(config.get("username"),config.get("password"))
 	
+	emdash.config.set("ctxid",ctxid)
+	print("CTXID: {}".format(ctxid))
+	
+	suite = db.record.get(config.get("suite"))
 	print("Record #{}".format(config.get("suite")))
 	print("Name: {}".format(suite["suite_name"]))
 	
@@ -37,7 +39,7 @@ def main():
 
 	sense = EMSenseHat()
 	sense.clear()
-
+		
 	last = {}
 	last["second"] = int(this.second)
 	last["minute"] = int(this.minute)
