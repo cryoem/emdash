@@ -145,7 +145,10 @@ class EMSensorLog:
 		self.csv_file.rectype = config.get("session_protocol")
 		self.csv_file.data = record
 		
-		record = self.csv_file.upload()
+		try:
+			record = self.csv_file.upload()
+		except:
+			print("Failed to upload {}".format(self.csv_file.name))
 		
 		try: # remove local file after upload is complete
 			os.unlink(self.csv_file.name)
