@@ -24,6 +24,7 @@ def main():
 	
 	print("Record #{}".format(config.get("suite")))
 	print("Name: {}".format(suite["suite_name"]))
+	
 	sys.stdout.flush()
 
 	sense = EMSenseHat()
@@ -44,13 +45,13 @@ def main():
 	
 	while True:
 		this = datetime.now()
-		data = sense.readout()
-		samples.append(data)
 		
 		# Every second
 		if this.second != last["second"]:
+			data = sense.readout()
+			samples.append(data)
 			sense.update_display()
-			time.sleep(1)
+			last["second"] = this.second
 		
 		# Every minute
 		if this.minute != last["minute"]:
@@ -60,12 +61,12 @@ def main():
 			last["minute"] = this.minute
 		
 		# Every hour
-		if this.hour != last["hour"] and this.hour != 0:
-			record = log.upload(db)
-			if record["temperature_ambient_avg"] > high_temp:
-				sense.high_temp_alert(record["temperature_ambient_avg"])
-			if record["humidity_ambient_avg"] > high_humid:
-				sense.high_humid_alert(record["humidity_ambient_avg"])
+		if this.hour != last["hour"]:
+			rec = log.upload(db)
+			if rec["temperature_ambient_avg"] > high_temp:
+				sense.high_temp_alert(rec["temperature_ambient_avg"])
+			if rec["humidity_ambient_avg"] > high_humid:
+				sense.high_humid_alert(rec["humidity_ambient_avg"])
 			log = EMSensorLog()
 			last["hour"] = this.hour
 		
@@ -104,10 +105,12 @@ class EMSensorLog:
 	
 	def upload(self,db):
 		data = self.read()
+		
 		t_high,h_high,p_high = np.max(data,axis=0)
 		t_low,h_low,p_low = np.min(data,axis=0)
 		t_avg,h_avg,p_avg = np.mean(data,axis=0)
 		
+		config = emdash.config.Config()
 		suite = db.record.get(config.get("suite"))
 		
 		rec = {}
