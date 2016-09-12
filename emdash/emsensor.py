@@ -11,7 +11,7 @@ import emdash.handlers
 
 def main():
 	config = emdash.config.Config()
-	this = datetime.now()
+	this = datetime.utcnow()
 	
 	print("Init: {}".format(this))
 	print("Host: {}".format(config.get("host")))
@@ -45,7 +45,7 @@ def main():
 	log = EMSensorLog(config)
 	
 	while True:
-		this = datetime.now()
+		this = datetime.utcnow()
 		
 		# Every second
 		if this.second != last["second"]:
@@ -82,7 +82,7 @@ def main():
 class EMSensorLog:
 
 	def __init__(self,conf):
-		self.start_date = datetime.now()
+		self.start_date = datetime.utcnow()
 		self.csv_file = emdash.handlers.FileHandler()
 		self.csv_file.name = "/home/pi/logs/{}.csv".format(self.start_date.date())
 		self.csv_file.rectype = "environment"
@@ -94,7 +94,7 @@ class EMSensorLog:
 				f.write("#{}\n".format(",".join(self.csv_file.header)))
 
 	def write(self,data,rnd=1):
-		n = datetime.now()
+		n = datetime.utcnow()
 		with open(self.csv_file.name,"a") as f:
 			dat = ",".join([str(round(val,rnd)) for val in data])
 			out = "{},{}\n".format(n,dat)
@@ -110,7 +110,7 @@ class EMSensorLog:
 		return np.asarray(data).astype(float)
 	
 	def upload(self,db):
-		self.end_date = datetime.now()
+		self.end_date = datetime.utcnow()
 		data = self.read()
 		
 		t_high,h_high,p_high = np.max(data,axis=0)
@@ -146,12 +146,12 @@ class EMSensorLog:
 		try:
 			os.unlink(self.csv_file.name)
 		except:
-			n = datetime.now()
+			n = datetime.utcnow()
 			print("{}\tWARNING: Failed to remove {}".format(n,self.csv_file.name))
 			sys.stdout.flush()
 		
 		self.csv_file.name = "/home/pi/logs/{}.csv".format(self.end_date.date())
-		self.start_date = datetime.now()
+		self.start_date = datetime.utcnow()
 		
 		return record
 
