@@ -7,6 +7,7 @@ import sys
 import numpy as np
 import time
 import emdash.config
+import emdash.handlers
 
 def main():
 	config = emdash.config.Config()
@@ -41,7 +42,7 @@ def main():
 
 	samples = []
 
-	log = EMSensorLog()
+	log = EMSensorLog(config)
 	
 	while True:
 		this = datetime.now()
@@ -62,34 +63,38 @@ def main():
 		
 		# Every hour
 		if this.hour != last["hour"]:
-			rec = log.upload(db)
 			if rec["temperature_ambient_avg"] > high_temp:
 				sense.high_temp_alert(rec["temperature_ambient_avg"])
 			if rec["humidity_ambient_avg"] > high_humid:
 				sense.high_humid_alert(rec["humidity_ambient_avg"])
-			log = EMSensorLog()
 			last["hour"] = this.hour
 		
 		# Every day
 		if this.day != last["day"]:
+			rec = log.upload(db)
+			log = EMSensorLog(config)
 			last["day"] = this.day
 
 class EMSensorLog:
 
-	def __init__(self):
-		n = datetime.now()
-		self.filename = "/home/pi/logs/{}_{}.csv".format(n.date(),n.hour)
+	def __init__(self,conf):
+		self.start_date = datetime.now()
+		self.filename = "/home/pi/logs/{}.csv".format(self.start_date.date())
 		header = ["timestamp","temperature","humidity","pressure"]
 		if not os.path.isfile(self.filename):
 			with open(self.filename,"w") as f:
 				f.write("#{}\n".format(",".join(header)))
-	
+		self.csv = emdash.handlers.FileHandler()
+		self.csv.name = self.filename
+		self.csv.rectype = "environment"
+		self.csv.param = "file_binary"
+		self.csv.target = conf.get("suite")
+
 	def write(self,data,rnd=1):
 		n = datetime.now()
-		tstamp = "{} {}:{:02}".format(n.date(),n.hour,n.minute)
 		with open(self.filename,"a") as f:
 			dat = ",".join([str(round(val,rnd)) for val in data])
-			out = "{},{}\n".format(tstamp,dat)
+			out = "{},{}\n".format(n,dat)
 			f.write(out)
 	
 	def read(self):
@@ -98,12 +103,11 @@ class EMSensorLog:
 			for i,l in enumerate(f):
 				if i > 0: # skip header
 					line = l.strip().split(",")
-					if i == 1: self.start_date = line[0]
 					data.append(line[1:])
-			self.end_date = line[0]
 		return np.asarray(data).astype(float)
 	
 	def upload(self,db):
+		self.end_date = datetime.now()
 		data = self.read()
 		
 		t_high,h_high,p_high = np.max(data,axis=0)
@@ -118,8 +122,8 @@ class EMSensorLog:
 		rec['groups'] = suite['groups']
 		rec['permissions'] = suite['permissions']
 		rec['rectype'] = config.get("session_protocol")
-		rec["date_start_str"] = str(self.start_date)
-		rec["date_end_str"] = str(self.end_date)
+		rec["date_start_str"] = self.start_date
+		rec["date_end_str"] = self.end_date
 		rec["temperature_ambient_low"] = round(t_low,1)
 		rec["temperature_ambient_high"] = round(t_high,1)
 		rec["temperature_ambient_avg"] = round(t_avg,1)
@@ -133,17 +137,23 @@ class EMSensorLog:
 		
 		record = db.record.put(rec)
 		
-		# handle csv upload
+		record = self.csv.upload() # csv upload
+		print(record)
 		
-		# remove local file after upload complete
-		os.unlink(self.filename)
+		# remove local file after upload is complete
+		try:
+			os.unlink(self.filename)
+		except:
+			n = datetime.now()
+			print("{}\tWARNING: Failed to remove {}".format(n,self.filename))
+			sys.stdout.flush()
 		
 		return record
 
 class EMSenseHat(SenseHat):
 
-	ON_H_PIXEL=[0,0,125]
-	ON_T_PIXEL=[125,0,0]
+	ON_H_PIXEL=[0,0,255]
+	ON_T_PIXEL=[255,0,0]
 	OFF_PIXEL=[0,0,0]
 
 	high_temp = 37.7
