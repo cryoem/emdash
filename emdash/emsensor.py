@@ -13,7 +13,8 @@ import dateutil.tz
 import emdash.config
 import emdash.handlers
 
-WATCHED_FILES = [__file__]
+executable = "/usr/local/bin/emdash_environment.py"
+WATCHED_FILES = [executable]
 WATCHED_FILES_MTIMES = [(f, getmtime(f)) for f in WATCHED_FILES]
 
 def gettime():
@@ -67,7 +68,7 @@ def main():
 				samples.append(data)
 				sense.update_display()
 				last["second"] = this.second
-						
+			
 			# Every minute
 			if this.minute != last["minute"]:
 				avg = np.mean(samples,axis=0)
@@ -93,7 +94,7 @@ def main():
 				
 			for f, mtime in WATCHED_FILES_MTIMES:
 				if getmtime(f) != mtime:
-					os.execv(__file__, sys.argv)
+					os.execv("/usr/local/bin/emdash_environment.py",sys.argv)
 	
 	except KeyboardInterrupt:
 		sense.clear()
