@@ -58,17 +58,17 @@ def main():
 		
 		# Every second
 		if this.second != last["second"]:
-			data = sense.readout()
+			data = sense.get_environment()
 			samples.append(data)
 			sense.update_display()
 			last["second"] = this.second
-			if this.second % 3 == 0:
-				avg = np.mean(samples,axis=0)
-				log.write(avg)
-				log.write(avg) # add three lines and upload
-				log.write(avg)
-				log.upload(db)
-				sys.exit(1)
+			#if this.second % 3 == 0:
+			#	avg = np.mean(samples,axis=0)
+			#	log.write(avg)
+			#	log.write(avg) # add three lines and upload
+			#	log.write(avg)
+			#	log.upload(db)
+			#	sys.exit(1)
 					
 		# Every minute
 		if this.minute != last["minute"]:
@@ -76,13 +76,15 @@ def main():
 			log.write(avg)
 			samples = []
 			last["minute"] = this.minute
-				
+		
 		# Every hour
 		if this.hour != last["hour"]:
-			if rec["temperature_ambient_avg"] > high_temp:
-				sense.high_temp_alert(rec["temperature_ambient_avg"])
-			if rec["humidity_ambient_avg"] > high_humid:
-				sense.high_humid_alert(rec["humidity_ambient_avg"])
+			readout = log.read()
+			sofar = np.mean(readout,axis=0)
+			if sofar[0] > high_temp:
+				sense.high_temp_alert(sofar[0] )
+			if sofar[1] > high_humid:
+				sense.high_humid_alert(sofar[1])
 			last["hour"] = this.hour
 		
 		# Every day
@@ -145,7 +147,6 @@ class EMSensorLog:
 		rec["pressure_ambient_high"] = round(p_high,1)
 		rec["pressure_ambient_avg"] = round(p_avg,1)
 		rec["comments"] = ""
-		#rec["file_binary"] = open(self.csv_file.name, "rb")
 		
 		record = db.record.put(rec)
 		
@@ -176,10 +177,9 @@ class EMSenseHat(SenseHat):
 	ON_T_PIXEL=[255,0,0]
 	OFF_PIXEL=[0,0,0]
 
-	high_temp = 37.7
-	low_temp = 0.
-
-	def readout(self,rnd=1):
+	max_temp = 37.
+	
+	def get_environment(self,rnd=1):
 		T = round(self.temperature,rnd)
 		H = round(self.humidity,rnd)
 		P = round(self.pressure,rnd)
@@ -191,7 +191,7 @@ class EMSenseHat(SenseHat):
 		h_off_count = 32-h_on_count
 		pixels.extend([self.ON_H_PIXEL] * h_on_count)
 		pixels.extend([self.OFF_PIXEL] * h_off_count)
-		norm_temp = (self.high_temp-self.temp)/(self.high_temp-self.low_temp)
+		norm_temp = (self.max_temp-self.temp)/self.max_temp
 		t_on_count = int(32*(norm_temp))
 		t_off_count = 32-t_on_count
 		pixels.extend([self.ON_T_PIXEL] * t_on_count)
@@ -200,11 +200,11 @@ class EMSenseHat(SenseHat):
 
 	def high_humid_alert(self,value):
 		self.show_message("ALERT!")
-		self.show_message("HIGH HUMIDITY: {:0.0f}%".format(value),text_colour=self.ON_H_PIXEL)
+		self.show_message("HUMID: {:0.0f}%".format(value),text_colour=self.ON_H_PIXEL)
 
 	def high_temp_alert(self,value):
 		self.show_message("ALERT!")
-		self.show_message("HIGH TEMP: {:0.0f}C".format(value),text_colour=self.ON_T_PIXEL)
+		self.show_message("TEMP: {:0.0f}C".format(value),text_colour=self.ON_T_PIXEL)
 
 class CSVHandler(emdash.handlers.FileHandler):
 
@@ -241,7 +241,7 @@ class CSVHandler(emdash.handlers.FileHandler):
 		
         # ... default is PUT -- much faster, less memory.
         rec = self._upload_put(path, qs)
-
+        
         # Write out the sidecar file.
         self.sidecar_write(self.name, {"name":rec.get('name')})
 
