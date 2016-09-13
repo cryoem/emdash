@@ -190,22 +190,22 @@ class EMSenseHat(SenseHat):
 		ar = self.get_accelerometer_raw()
 		x = round(ar["x"])
 		y = round(ar["y"])
-		
 		if x == -1: rot=0
 		elif y == -1: rot=90
 		elif x == 1: rot=180
 		else: rot = 270
-		
 		self.set_rotation(rot)
 
 	def update_display(self):
 		self.auto_rotate()
 		pixels = []
+		
 		h_on_count = int(32*(self.humidity/100.))
 		h_off_count = 32-h_on_count
 		pixels.extend([self.ON_H_PIXEL] * (h_on_count-1))
 		pixels.extend([self.READ_PIXEL])
 		pixels.extend([self.OFF_PIXEL] * h_off_count)
+		
 		if self.temp > self.max_temp:
 			t_on_count = 32
 		elif self.temp < 0:
@@ -220,12 +220,12 @@ class EMSenseHat(SenseHat):
 		self.set_pixels(pixels)
 
 	def high_humid_alert(self,value):
-		self.auto_rotate()
+		self.set_rotation(0)
 		self.show_message("ALERT!")
 		self.show_message("HIGH HUMID: {:0.0f}%".format(value),text_colour=self.ON_H_PIXEL)
 
 	def high_temp_alert(self,value):
-		self.auto_rotate()
+		self.set_rotation(0)
 		self.show_message("ALERT!")
 		self.show_message("HIGH TEMP: {:0.0f}C".format(value),text_colour=self.ON_T_PIXEL)
 
