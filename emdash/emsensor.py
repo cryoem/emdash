@@ -153,6 +153,9 @@ class EMSensorLog:
 		except:
 			print("Failed to upload {}".format(self.csv_file.name))
 		
+		return record
+	
+	def new(self):
 		try: # remove local file after upload is complete
 			os.unlink(self.csv_file.name)
 		except:
@@ -162,8 +165,6 @@ class EMSensorLog:
 		
 		self.csv_file.name = "/home/pi/logs/{}.csv".format(self.end_date.date())
 		self.start_date = gettime()
-		
-		return record
 
 class EMSenseHat(SenseHat):
 
@@ -243,7 +244,7 @@ class EMSenseHat(SenseHat):
 	def high_temp_alert(self,value):
 		self.set_rotation(0)
 		self.show_message("ALERT!")
-		self.show_message("HIGH TEMP: {:0.0f}C".format(value),text_colour=self.ON_T_PIXEL)
+		self.show_message("HIGH TEMPERATURE: {:0.0f}C".format(value),text_colour=self.ON_T_PIXEL)
 
 class CSVHandler(emdash.handlers.FileHandler):
 
@@ -271,9 +272,6 @@ class CSVHandler(emdash.handlers.FileHandler):
         
         # File to upload
         qs[self.param] = open(self.name, "rb")
-
-        # Extract metadata...
-        qs.update(self.extract())
         
         # Try to upload. Creates a new record.
         path = '/record/%s/new/%s/'%(target, self.rectype)
@@ -282,7 +280,7 @@ class CSVHandler(emdash.handlers.FileHandler):
         rec = self._upload_put(path, qs)
         
         # Write out the sidecar file.
-        self.sidecar_write(self.name, {"name":rec.get('name')})
+        #self.sidecar_write(self.name, {"name":rec.get('name')})
 
         # Return the updated (or new) record..
         return rec
