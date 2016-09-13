@@ -53,38 +53,42 @@ def main():
 
 	log = EMSensorLog(config)
 	
-	while True:
-		this = gettime()
-		
-		# Every second
-		if this.second != last["second"]:
-			data = sense.get_environment()
-			samples.append(data)
-			sense.update_display()
-			last["second"] = this.second
-					
-		# Every minute
-		if this.minute != last["minute"]:
-			avg = np.mean(samples,axis=0)
-			log.write(avg)
-			samples = []
-			last["minute"] = this.minute
-		
-		# Every hour
-		if this.hour != last["hour"]:
-			readout = log.read()
-			sofar = np.mean(readout,axis=0)
-			if sofar[0] > high_temp:
-				sense.high_temp_alert(sofar[0] )
-			if sofar[1] > high_humid:
-				sense.high_humid_alert(sofar[1])
-			last["hour"] = this.hour
-		
-		# Every day
-		if this.day != last["day"]:
-			rec = log.upload(db)
-			sense.reset_maxima()
-			last["day"] = this.day
+	try:
+		while True:
+			this = gettime()
+			
+			# Every second
+			if this.second != last["second"]:
+				data = sense.get_environment()
+				samples.append(data)
+				sense.update_display()
+				last["second"] = this.second
+						
+			# Every minute
+			if this.minute != last["minute"]:
+				avg = np.mean(samples,axis=0)
+				log.write(avg)
+				samples = []
+				last["minute"] = this.minute
+			
+			# Every hour
+			if this.hour != last["hour"]:
+				readout = log.read()
+				sofar = np.mean(readout,axis=0)
+				if sofar[0] > high_temp:
+					sense.high_temp_alert(sofar[0] )
+				if sofar[1] > high_humid:
+					sense.high_humid_alert(sofar[1])
+				last["hour"] = this.hour
+			
+			# Every day
+			if this.day != last["day"]:
+				rec = log.upload(db)
+				sense.reset_maxima()
+				last["day"] = this.day
+	
+	except KeyboardInterrupt:
+		sense.clear()
 
 class EMSensorLog:
 
@@ -249,14 +253,6 @@ class EMSenseHat(SenseHat):
 class CSVHandler(emdash.handlers.FileHandler):
 
     def upload(self):
-        self.log("\n--- Starting upload: %s ---"%self.name)
-
-		# Check JSON
-        check = self.sidecar_read(self.name)
-        if check.get('name'):
-            self.log("File already exists in database -- check %s"%check.get('name'))
-            return check
-
         # This upload method will always create a new record for each file.
         target = self.target or self.data.get('_target')
 
@@ -278,9 +274,6 @@ class CSVHandler(emdash.handlers.FileHandler):
 		
         # ... default is PUT -- much faster, less memory.
         rec = self._upload_put(path, qs)
-        
-        # Write out the sidecar file.
-        #self.sidecar_write(self.name, {"name":rec.get('name')})
 
         # Return the updated (or new) record..
         return rec
