@@ -175,36 +175,59 @@ class EMSenseHat(SenseHat):
 
 	ON_H_PIXEL=[0,0,255]
 	ON_T_PIXEL=[255,0,0]
+	READ_PIXEL=[255,255,255]
 	OFF_PIXEL=[0,0,0]
-
-	max_temp = 37.
+	
+	max_temp = 37.7 # temperature at which all LEDs will be displayed
 	
 	def get_environment(self,rnd=1):
 		T = round(self.temperature,rnd)
 		H = round(self.humidity,rnd)
 		P = round(self.pressure,rnd)
 		return [T,H,P]
+	
+	def auto_rotate(self):
+		ar = self.get_accelerometer_raw()
+		x = round(ar["x"])
+		y = round(ar["y"])
+		
+		if x == -1: rot=0
+		elif y == -1: rot=90
+		elif x == 1: rot=180
+		else: rot = 270
+		
+		self.set_rotation(rot)
 
 	def update_display(self):
+		self.auto_rotate()
 		pixels = []
 		h_on_count = int(32*(self.humidity/100.))
 		h_off_count = 32-h_on_count
-		pixels.extend([self.ON_H_PIXEL] * h_on_count)
+		pixels.extend([self.ON_H_PIXEL] * (h_on_count-1))
+		pixels.extend([self.READ_PIXEL])
 		pixels.extend([self.OFF_PIXEL] * h_off_count)
-		norm_temp = (self.max_temp-self.temp)/self.max_temp
-		t_on_count = int(32*(norm_temp))
+		if self.temp > self.max_temp:
+			t_on_count = 32
+		elif self.temp < 0:
+			t_on_count = 0
+		else:
+			t_on_count = int(32*(self.temp/self.max_temp))
 		t_off_count = 32-t_on_count
-		pixels.extend([self.ON_T_PIXEL] * t_on_count)
+		pixels.extend([self.ON_T_PIXEL] * (t_on_count-1))
+		pixels.extend([self.READ_PIXEL])
 		pixels.extend([self.OFF_PIXEL] * t_off_count)
+		
 		self.set_pixels(pixels)
 
 	def high_humid_alert(self,value):
+		self.auto_rotate()
 		self.show_message("ALERT!")
-		self.show_message("HUMID: {:0.0f}%".format(value),text_colour=self.ON_H_PIXEL)
+		self.show_message("HIGH HUMID: {:0.0f}%".format(value),text_colour=self.ON_H_PIXEL)
 
 	def high_temp_alert(self,value):
+		self.auto_rotate()
 		self.show_message("ALERT!")
-		self.show_message("TEMP: {:0.0f}C".format(value),text_colour=self.ON_T_PIXEL)
+		self.show_message("HIGH TEMP: {:0.0f}C".format(value),text_colour=self.ON_T_PIXEL)
 
 class CSVHandler(emdash.handlers.FileHandler):
 
