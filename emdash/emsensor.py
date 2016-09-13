@@ -13,8 +13,8 @@ import dateutil.tz
 import emdash.config
 import emdash.handlers
 
-executable = "/usr/local/bin/emdash_environment.py"
-WATCHED_FILES = [executable]
+EXECUTABLE = "/usr/local/bin/emdash_environment.py"
+WATCHED_FILES = [__file__,EXECUTABLE]
 WATCHED_FILES_MTIMES = [(f, getmtime(f)) for f in WATCHED_FILES]
 
 def gettime():
@@ -94,7 +94,7 @@ def main():
 				
 			for f, mtime in WATCHED_FILES_MTIMES:
 				if getmtime(f) != mtime:
-					os.execv("/usr/local/bin/emdash_environment.py",sys.argv)
+					os.execv(EXECUTABLE,sys.argv)
 	
 	except KeyboardInterrupt:
 		sense.clear()
@@ -257,7 +257,7 @@ class EMSenseHat(SenseHat):
 	def high_temp_alert(self,value):
 		self.set_rotation(0)
 		self.show_message("ALERT!")
-		self.show_message("HIGH TEMPERATURE: {:0.0f}C".format(value),text_colour=self.ON_T_PIXEL)
+		self.show_message("HIGH TEMP: {:0.0f}C".format(value),text_colour=self.ON_T_PIXEL)
 
 class CSVHandler(emdash.handlers.FileHandler):
 
@@ -288,4 +288,7 @@ class CSVHandler(emdash.handlers.FileHandler):
         return rec
 
 if __name__ == "__main__":
-	main()
+	try:
+		main()
+	except:
+		os.execv(EXECUTABLE,sys.argv)
