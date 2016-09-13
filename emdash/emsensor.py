@@ -62,13 +62,6 @@ def main():
 			samples.append(data)
 			sense.update_display()
 			last["second"] = this.second
-			#if this.second % 3 == 0:
-			#	avg = np.mean(samples,axis=0)
-			#	log.write(avg)
-			#	log.write(avg) # add three lines and upload
-			#	log.write(avg)
-			#	log.upload(db)
-			#	sys.exit(1)
 					
 		# Every minute
 		if this.minute != last["minute"]:
@@ -222,7 +215,7 @@ class EMSenseHat(SenseHat):
 	def high_humid_alert(self,value):
 		self.set_rotation(0)
 		self.show_message("ALERT!")
-		self.show_message("HIGH HUMID: {:0.0f}%".format(value),text_colour=self.ON_H_PIXEL)
+		self.show_message("HIGH HUMIDITY: {:0.0f}%".format(value),text_colour=self.ON_H_PIXEL)
 
 	def high_temp_alert(self,value):
 		self.set_rotation(0)
