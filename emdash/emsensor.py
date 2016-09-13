@@ -3,6 +3,7 @@
 from sense_hat import SenseHat
 from datetime import datetime
 import os
+from os.path import getmtime
 import sys
 import numpy as np
 import time
@@ -11,6 +12,9 @@ import dateutil.tz
 
 import emdash.config
 import emdash.handlers
+
+WATCHED_FILES = [__file__]
+WATCHED_FILES_MTIMES = [(f, getmtime(f)) for f in WATCHED_FILES]
 
 def gettime():
     return datetime.now(dateutil.tz.gettz())
@@ -86,6 +90,10 @@ def main():
 				rec = log.upload(db)
 				sense.reset_maxima()
 				last["day"] = this.day
+				
+			for f, mtime in WATCHED_FILES_MTIMES:
+				if getmtime(f) != mtime:
+					os.execv(__file__, sys.argv)
 	
 	except KeyboardInterrupt:
 		sense.clear()
