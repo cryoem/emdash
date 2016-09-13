@@ -83,6 +83,7 @@ def main():
 		# Every day
 		if this.day != last["day"]:
 			rec = log.upload(db)
+			sense.reset_maxima()
 			last["day"] = this.day
 
 class EMSensorLog:
@@ -171,6 +172,9 @@ class EMSenseHat(SenseHat):
 	READ_PIXEL=[255,255,255]
 	OFF_PIXEL=[0,0,0]
 	
+	max_recorded_temp = 0.
+	max_recorded_humidity = 0.
+	
 	max_temp = 37.7 # temperature at which all LEDs will be displayed
 	
 	def get_environment(self,rnd=1):
@@ -178,6 +182,10 @@ class EMSenseHat(SenseHat):
 		H = round(self.humidity,rnd)
 		P = round(self.pressure,rnd)
 		return [T,H,P]
+	
+	def reset_maxima(self):
+		self.max_recorded_humidity = 0.
+		self.max_recorded_temperature = 0.
 	
 	def auto_rotate(self):
 		ar = self.get_accelerometer_raw()
@@ -191,14 +199,20 @@ class EMSenseHat(SenseHat):
 
 	def update_display(self):
 		self.auto_rotate()
-		pixels = []
 		
+		h_pixels = []
 		h_on_count = int(32*(self.humidity/100.))
 		h_off_count = 32-h_on_count
-		pixels.extend([self.ON_H_PIXEL] * (h_on_count-1))
-		pixels.extend([self.READ_PIXEL])
-		pixels.extend([self.OFF_PIXEL] * h_off_count)
+		h_pixels.extend([self.ON_H_PIXEL] * h_on_count)
+		h_pixels.extend([self.OFF_PIXEL] * h_off_count)
 		
+		if self.humidity > self.max_recorded_humidity:
+			self.max_recorded_humidity = self.humidity
+		
+		h_max_pixel = int(32*(self.max_recorded_humidity / 100.))
+		h_pixels[h_max_pixel] = self.READ_PIXEL
+		
+		t_pixels = []
 		if self.temp > self.max_temp:
 			t_on_count = 32
 		elif self.temp < 0:
@@ -206,9 +220,18 @@ class EMSenseHat(SenseHat):
 		else:
 			t_on_count = int(32*(self.temp/self.max_temp))
 		t_off_count = 32-t_on_count
-		pixels.extend([self.ON_T_PIXEL] * (t_on_count-1))
-		pixels.extend([self.READ_PIXEL])
-		pixels.extend([self.OFF_PIXEL] * t_off_count)
+		t_pixels.extend([self.ON_T_PIXEL] * t_on_count)
+		t_pixels.extend([self.OFF_PIXEL] * t_off_count)
+		
+		if self.temp > self.max_recorded_temp:
+			self.max_recorded_temp = self.temp
+		
+		t_max_pixel = int(32*(self.max_recorded_temp / self.max_temp))
+		t_pixels[t_max_pixel] = self.READ_PIXEL
+		
+		pixels = []
+		pixels.extend(h_pixels)
+		pixels.extend(t_pixels)
 		
 		self.set_pixels(pixels)
 
