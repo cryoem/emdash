@@ -10,6 +10,7 @@ import time
 import dateutil
 import dateutil.tz
 
+import emdash
 import emdash.config
 import emdash.handlers
 
@@ -73,6 +74,7 @@ def main():
 			if this.minute != last["minute"]:
 				avg = np.mean(samples,axis=0)
 				log.write(avg)
+				#rec = log.upload(db) ## DEBUG
 				samples = []
 				last["minute"] = this.minute
 			
@@ -91,7 +93,7 @@ def main():
 				rec = log.upload(db)
 				sense.reset_maxima()
 				last["day"] = this.day
-				
+			
 			for f, mtime in WATCHED_FILES_MTIMES:
 				if getmtime(f) != mtime:
 					os.execv(EXECUTABLE,sys.argv)
@@ -103,23 +105,23 @@ class EMSensorLog:
 
 	def __init__(self,conf):
 		self.start_date = gettime()
-		self.csv_file = CSVHandler()
-		self.csv_file.name = "/home/pi/logs/{}.csv".format(self.start_date.date())
-		self.csv_file.header = ["timestamp","temperature","humidity","pressure"]
-		if not os.path.isfile(self.csv_file.name):
-			with open(self.csv_file.name,"w") as f:
-				f.write("#{}\n".format(",".join(self.csv_file.header)))
+		self.ah = AttachmentHandler()
+		self.ah.name = "/home/pi/logs/{}.csv".format(self.start_date.date())
+		self.ah.header = ["timestamp","temperature","humidity","pressure"]
+		if not os.path.isfile(self.ah.name):
+			with open(self.ah.name,"w") as f:
+				f.write("#{}\n".format(",".join(self.ah.header)))
 
 	def write(self,data,rnd=1):
 		n = gettime()
-		with open(self.csv_file.name,"a") as f:
+		with open(self.ah.name,"a") as f:
 			dat = ",".join([str(round(val,rnd)) for val in data])
 			out = "{},{}\n".format(n,dat)
 			f.write(out)
 	
 	def read(self):
 		data = []
-		with open(self.csv_file.name,"r") as f:
+		with open(self.ah.name,"r") as f:
 			for i,l in enumerate(f):
 				if i > 0: # skip header
 					line = l.strip().split(",")
@@ -157,26 +159,25 @@ class EMSensorLog:
 		
 		record = db.record.put(rec)
 		
-		self.csv_file.target = record["name"]
-		self.csv_file.rectype = config.get("session_protocol")
-		self.csv_file.data = record
+		self.ah.target = record["name"]
+		#self.ah.data = record
 		
-		try:
-			record = self.csv_file.upload()
-		except:
-			print("Failed to upload {}".format(self.csv_file.name))
+		#try:
+		record = self.ah.upload()
+		#except:
+		#print("Failed to upload {}".format(self.ah.name))
 		
 		return record
 	
 	def new(self):
 		try: # remove local file after upload is complete
-			os.unlink(self.csv_file.name)
+			os.unlink(self.ah.name)
 		except:
 			n = gettime()
-			print("{}\tWARNING: Failed to remove {}".format(n,self.csv_file.name))
+			print("{}\tWARNING: Failed to remove {}".format(n,self.ah.name))
 			sys.stdout.flush()
 		
-		self.csv_file.name = "/home/pi/logs/{}.csv".format(self.end_date.date())
+		self.ah.name = "/home/pi/logs/{}.csv".format(self.end_date.date())
 		self.start_date = gettime()
 
 class EMSenseHat(SenseHat):
@@ -259,33 +260,19 @@ class EMSenseHat(SenseHat):
 		self.show_message("ALERT!")
 		self.show_message("HIGH TEMP: {:0.0f}C".format(value),text_colour=self.ON_T_PIXEL)
 
-class CSVHandler(emdash.handlers.FileHandler):
+class AttachmentHandler(emdash.handlers.FileHandler):
 
     def upload(self):
-        # This upload method will always create a new record for each file.
-        target = self.target or self.data.get('_target')
-
-        # New record request
-        qs = {}
-        qs['_format'] = 'csv'
-        qs['ctxid'] = emdash.config.get('ctxid')
-        qs['date_occurred'] = emdash.handlers.filetime(self.name)
-        
-        for k,v in self.data.items():
-            if not k.startswith('_'):
-                qs[k] = v
-        
-        # File to upload
-        qs[self.param] = open(self.name, "rb")
-        
-        # Try to upload. Creates a new record.
-        path = '/record/%s/new/%s/'%(target, self.rectype)
+		target = self.target or self.data.get('_target')
 		
-        # ... default is PUT -- much faster, less memory.
-        rec = self._upload_put(path, qs)
-
-        # Return the updated (or new) record..
-        return rec
+		rec = {}
+		rec['_format'] = 'json'
+		rec['ctxid'] = emdash.config.get('ctxid')
+		rec[self.param] = emdash.transport.UploadFile(self.name,'rb')
+		
+		rec = self._upload_put('/record/%s/edit'%(target),rec)
+		
+		return rec
 
 if __name__ == "__main__":
 	try:
