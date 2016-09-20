@@ -41,24 +41,21 @@ def main():
 	logged_in = False
 	while logged_in is False:
 		try:
-			print("\rLOGGING IN..."),
-			sys.stdout.flush()
+			print("LOGGING IN...")
 			ctxid = db.login(config.get("username"),config.get("password"))
 			logged_in = True
+			db = config.db(ctxid=ctxid)
+			print("SUCCESS.")
+			emdash.config.set("ctxid",ctxid)
+			print("CTXID: {}".format(ctxid))
 		except Exception,e:
 			print("FAILED ({}). Will try again in 5 seconds.".format(e.msg))
 			logged_in = False
 			time.sleep(5)
 		sys.stdout.flush()
 	
-	print("SUCCESS.")
-	sys.stdout.flush()
-	
-	emdash.config.set("ctxid",ctxid)
-	print("CTXID: {}".format(ctxid))
-	
-	room = db.record.get(config.get("record"))
-	print("Record #{}".format(config.get("record")))
+	room = db.record.get(config.get("room_id"))
+	print("Record #{}".format(config.get("room_id")))
 	print("Name: {}".format(room["room_name"]))
 	
 	sys.stdout.flush()
@@ -157,7 +154,7 @@ class EMSensorLog:
 		t_avg,h_avg,p_avg = np.mean(data,axis=0)
 		
 		config = emdash.config.Config()
-		room = db.record.get(config.get("record"))
+		room = db.record.get(config.get("room_id"))
 		
 		rec = {}
 		rec['parents'] = room['name']
