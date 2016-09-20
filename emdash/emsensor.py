@@ -14,6 +14,8 @@ import emdash
 import emdash.config
 import emdash.handlers
 
+import jsonrpc.proxy
+
 EXECUTABLE = "/usr/local/bin/emdash_environment.py"
 WATCHED_FILES = [__file__,EXECUTABLE]
 WATCHED_FILES_MTIMES = [(f, getmtime(f)) for f in WATCHED_FILES]
@@ -34,7 +36,7 @@ def main():
 	
 	sys.stdout.flush()
 	
-	db = config.db()
+	db = jsonrpc.proxy.JSONRPCProxy(config.get("host"))
 	
 	logged_in = False
 	while logged_in is False:
