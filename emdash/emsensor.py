@@ -26,6 +26,7 @@ def main():
 	config = emdash.config.Config()
 	
 	this = gettime()
+	
 	print("Init: {}".format(this))
 	print("Host: {}".format(config.get("host")))
 	print("User: {}".format(config.get("username")))
@@ -34,19 +35,20 @@ def main():
 	sys.stdout.flush()
 	
 	db = config.db()
+	
 	logged_in = False
 	while logged_in is False:
 		try:
-			print("LOGGING IN")
+			print("\rLOGGING IN..."),
 			ctxid = db.login(config.get("username"),config.get("password"))
 			logged_in = True
-		except:
-			print("LOG IN FAILED. Will try again in 5 seconds")
+		except Exception,e:
+			print("FAILED ({}). Will try again in 5 seconds.".format(e.msg))
 			logged_in = False
 			time.sleep(5)
 		sys.stdout.flush()
-	
 	print("SUCCESS.")
+	
 	emdash.config.set("ctxid",ctxid)
 	print("CTXID: {}".format(ctxid))
 	
