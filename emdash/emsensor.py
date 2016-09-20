@@ -26,8 +26,8 @@ def main():
 	config = emdash.config.Config()
 	
 	this = gettime()
-	
 	print("Init: {}".format(this))
+	
 	print("Host: {}".format(config.get("host")))
 	print("User: {}".format(config.get("username")))
 	print("Protocol: {}".format(config.get("session_protocol")))
