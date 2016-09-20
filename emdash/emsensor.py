@@ -36,14 +36,16 @@ def main():
 	
 	sys.stdout.flush()
 	
-	#db = jsonrpc.proxy.JSONRPCProxy(config.get("host"))
-	db = config.db()
-	
 	logged_in = False
 	while logged_in is False:
 		try:
 			print("LOGGING IN...")
-			ctxid = db.login(config.get("username"),config.get("password"))
+			try:
+				db = config.db()
+				ctxid = db.login(config.get("username"),config.get("password"))
+			except:
+				db = jsonrpc.proxy.JSONRPCProxy(config.get("host"))
+				ctxid = db.login(config.get("username"),config.get("password"))
 			emdash.config.set("ctxid",ctxid)
 			logged_in = True
 			print("SUCCESS.")
@@ -91,12 +93,12 @@ def main():
 			if this.minute != last["minute"]:
 				avg = np.mean(samples,axis=0)
 				log.write(avg)
-				#rec = log.upload(db) ## DEBUG
+				rec = log.upload(db) ## DEBUG
 				samples = []
 				last["minute"] = this.minute
 			
 			# Every hour
-			if this.hour != last["hour"]:
+			if this.hour != last["hour"] and this.hour != 0:
 				readout = log.read()
 				sofar = np.mean(readout,axis=0)
 				if sofar[0] > high_temp:
@@ -107,7 +109,11 @@ def main():
 			
 			# Every day
 			if this.day != last["day"]:
+				print("Uploading...")
+				sys.stdout.flush()
 				rec = log.upload(db)
+				print("Success")
+				sys.stdout.flush()
 				sense.reset_maxima()
 				last["day"] = this.day
 			
@@ -157,22 +163,32 @@ class EMSensorLog:
 		room = db.record.get(config.get("room_id"))
 		
 		rec = {}
-		rec['parents'] = room['name']
-		rec['groups'] = room['groups']
-		rec['permissions'] = room['permissions']
-		rec['rectype'] = config.get("session_protocol")
-		rec["date_start"] = self.start_date.isoformat()
-		rec["date_end"] = self.end_date.isoformat()
-		rec["temperature_ambient_low"] = round(t_low,1)
-		rec["temperature_ambient_high"] = round(t_high,1)
-		rec["temperature_ambient_avg"] = round(t_avg,1)
-		rec["humidity_ambient_low"] = round(h_low,1)
-		rec["humidity_ambient_high"] = round(h_high,1)
-		rec["humidity_ambient_avg"] = round(h_avg,1)
-		rec["pressure_ambient_low"] = round(p_low,1)
-		rec["pressure_ambient_high"] = round(p_high,1)
-		rec["pressure_ambient_avg"] = round(p_avg,1)
-		rec["comments"] = ""
+		
+		rec[u'parents'] = room['name']
+		rec[u'groups'] = room['groups']
+		rec[u'permissions'] = room['permissions']
+		rec[u'rectype'] = config.get("session_protocol")
+		
+		rec[u'room_name'] = room["room_name"]
+		
+		rec[u'date_start'] = self.start_date.isoformat()
+		rec[u'date_end'] = self.end_date.isoformat()
+		
+		rec[u'temperature_ambient_low'] = round(t_low,1)
+		rec[u'temperature_ambient_high'] = round(t_high,1)
+		rec[u'temperature_ambient_avg'] = round(t_avg,1)
+		
+		rec[u'humidity_ambient_low'] = round(h_low,1)
+		rec[u'humidity_ambient_high'] = round(h_high,1)
+		rec[u'humidity_ambient_avg'] = round(h_avg,1)
+		
+		rec[u'pressure_ambient_low'] = round(p_low,1)
+		rec[u'pressure_ambient_high'] = round(p_high,1)
+		rec[u'pressure_ambient_avg'] = round(p_avg,1)
+		
+		rec[u'comments'] = ""
+		
+		rec.update()
 		
 		record = db.record.put(rec)
 		
