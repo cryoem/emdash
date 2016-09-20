@@ -50,9 +50,9 @@ def main():
 	emdash.config.set("ctxid",ctxid)
 	print("CTXID: {}".format(ctxid))
 	
-	suite = db.record.get(config.get("suite"))
-	print("Record #{}".format(config.get("suite")))
-	print("Name: {}".format(suite["suite_name"]))
+	room = db.record.get(config.get("record"))
+	print("Record #{}".format(config.get("record")))
+	print("Name: {}".format(room["room_name"]))
 	
 	sys.stdout.flush()
 
@@ -150,20 +150,20 @@ class EMSensorLog:
 		t_avg,h_avg,p_avg = np.mean(data,axis=0)
 		
 		config = emdash.config.Config()
-		suite = db.record.get(config.get("suite"))
+		room = db.record.get(config.get("record"))
 		
 		rec = {}
-		rec['parents'] = suite['name']
-		rec['groups'] = suite['groups']
-		rec['permissions'] = suite['permissions']
+		rec['parents'] = room['name']
+		rec['groups'] = room['groups']
+		rec['permissions'] = room['permissions']
 		rec['rectype'] = config.get("session_protocol")
-		rec["date_start_dt"] = self.start_date.isoformat()
-		rec["date_end_dt"] = self.end_date.isoformat()
+		rec["date_start"] = self.start_date.isoformat()
+		rec["date_end"] = self.end_date.isoformat()
 		rec["temperature_ambient_low"] = round(t_low,1)
 		rec["temperature_ambient_high"] = round(t_high,1)
 		rec["temperature_ambient_avg"] = round(t_avg,1)
 		rec["humidity_ambient_low"] = round(h_low,1)
-		rec["humidity_ambient_high_float"] = round(h_high,1)
+		rec["humidity_ambient_high"] = round(h_high,1)
 		rec["humidity_ambient_avg"] = round(h_avg,1)
 		rec["pressure_ambient_low"] = round(p_low,1)
 		rec["pressure_ambient_high"] = round(p_high,1)
@@ -173,12 +173,8 @@ class EMSensorLog:
 		record = db.record.put(rec)
 		
 		self.ah.target = record["name"]
-		#self.ah.data = record
 		
-		#try:
 		record = self.ah.upload()
-		#except:
-		#print("Failed to upload {}".format(self.ah.name))
 		
 		return record
 	
