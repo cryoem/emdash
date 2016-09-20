@@ -36,18 +36,17 @@ def main():
 	
 	sys.stdout.flush()
 	
-	db = jsonrpc.proxy.JSONRPCProxy(config.get("host"))
+	#db = jsonrpc.proxy.JSONRPCProxy(config.get("host"))
+	db = config.db()
 	
 	logged_in = False
 	while logged_in is False:
 		try:
 			print("LOGGING IN...")
 			ctxid = db.login(config.get("username"),config.get("password"))
-			logged_in = True
-			db = config.db(ctxid=ctxid)
-			print("SUCCESS.")
 			emdash.config.set("ctxid",ctxid)
-			print("CTXID: {}".format(ctxid))
+			logged_in = True
+			print("SUCCESS.")
 		except Exception,e:
 			print("FAILED ({}). Will try again in 5 seconds.".format(e.msg))
 			logged_in = False
@@ -55,6 +54,7 @@ def main():
 		sys.stdout.flush()
 	
 	room = db.record.get(config.get("room_id"))
+	print("CTXID: {}".format(ctxid))
 	print("Record #{}".format(config.get("room_id")))
 	print("Name: {}".format(room["room_name"]))
 	
