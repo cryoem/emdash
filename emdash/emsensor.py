@@ -42,6 +42,7 @@ def main():
 	while logged_in is False:
 		try:
 			print("\rLOGGING IN..."),
+			sys.stdout.flush()
 			ctxid = db.login(config.get("username"),config.get("password"))
 			logged_in = True
 		except Exception,e:
@@ -49,7 +50,9 @@ def main():
 			logged_in = False
 			time.sleep(5)
 		sys.stdout.flush()
+	
 	print("SUCCESS.")
+	sys.stdout.flush()
 	
 	emdash.config.set("ctxid",ctxid)
 	print("CTXID: {}".format(ctxid))
