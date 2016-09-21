@@ -201,24 +201,49 @@ class EMSensorLog:
 
 class EMSenseHat(SenseHat):
 	OFF_PIXEL=[0,0,0]
-	MAX_PIXEL = [100,100,100]
-	GOOD_PIXEL = [0,100,100]
-	BAD_PIXEL = [100,0,0]
+	MAX_PIXEL = [50,50,50]
+	LOW_PIXEL = [0,100,100]
+	GOOD_PIXEL = [0,100,0]
 	WARN_PIXEL = [100,100,0]
+	BAD_PIXEL = [100,0,0]
 	ALERT_PIXEL = [100,100,100]
 	
-	max_recorded_temp = 0.
-	max_recorded_humidity = 0.
+	pix_grad = [LOW_PIXEL,GOOD_PIXEL,WARN_PIXEL,BAD_PIXEL,BAD_PIXEL]
+
+	bar_npix = 16
+
+	max_temp = 26.0
+	min_temp = 15.0
+	temp_range = max_temp-min_temp
 	
-	good_temp = 23.
-	bad_temp = 28.
+	good_temp = 18.0 # below this is uncomfortable for most humans
+	warn_temp = 21.5
+	bad_temp = 22.0
 	
-	good_humidity = 35.
-	bad_humidity = 45.
+	t_weights = []
+	t_weights.append(int(bar_npix*(good_temp-min_temp)/temp_range))
+	t_weights.append(int(bar_npix*(warn_temp-min_temp)/temp_range)-sum(t_weights))
+	t_weights.append(int(bar_npix*(bad_temp-min_temp)/temp_range)-sum(t_weights))
+	t_weights.append(bar_npix-sum(t_weights))
+	t_weights.append(1) # dummy
 	
-	max_temp = 40.0
-	min_temp = 10.0
+	good_humidity = 20.0 # static charging common below this %RH
+	warn_humidity = 31.0
+	bad_humidity = 32.0
 	
+	max_humid = 50.0
+	min_humid = 0.0
+	humid_range = max_humid - min_humid
+	
+	h_weights = []
+	h_weights.append(int(bar_npix*(good_humidity-min_humid)/humid_range))
+	h_weights.append(int(bar_npix*(warn_humidity-min_humid)/humid_range)-sum(h_weights))
+	h_weights.append(int(bar_npix*(bad_humidity-min_humid)/humid_range)-sum(h_weights))
+	h_weights.append(bar_npix-sum(h_weights))
+	h_weights.append(1) # dummy
+	
+	print(t_weights,h_weights)
+		
 	def get_environment(self,rnd=1):
 		T = round(self.temperature,rnd)
 		H = round(self.humidity,rnd)
@@ -242,64 +267,43 @@ class EMSenseHat(SenseHat):
 	def update_display(self):
 		self.auto_rotate()
 		
+		t_grad = self.polylinear_color_gradient(self.pix_grad,self.t_weights)
+		
 		# Temperature Bar
 		t_pixels = []
 		
 		if self.temp >= self.max_temp:
-			t_on_count = 16
-		elif self.temp < 0:
+			t_on_count = self.bar_npix
+		elif self.temp < self.min_temp:
 			t_on_count = 0
 		else:
-			norm_t = (self.temp-self.min_temp)/(self.max_temp-self.min_temp)
-			t_on_count = int(round(16.*norm_t))
+			norm_t = (self.temp-self.min_temp)/self.temp_range
+			t_on_count = int(self.bar_npix*norm_t)
 		
-		t_off_count = 16-t_on_count
+		t_off_count = self.bar_npix-t_on_count
 		
-		if self.temp <= self.good_temp:
-			t_pixels.extend([self.GOOD_PIXEL] * t_on_count)
-		elif self.temp <= self.bad_temp:
-			t_pixels.extend([self.WARN_PIXEL] * t_on_count)
-		else:
-			t_pixels.extend([self.BAD_PIXEL] * t_on_count)
+		t_pixels.extend(t_grad[:t_on_count])
 		
 		t_pixels.extend([self.OFF_PIXEL] * t_off_count)
 		
-		if self.temp > self.max_recorded_temp:
-			self.max_recorded_temp = self.temp
-		
-		if self.max_recorded_temp > self.max_temp:
-			t_max_count = 16
-		elif self.max_recorded_temp < self.min_temp:
-			t_max_count = 0
-		else:
-			norm_max_t = (self.max_recorded_temp-self.min_temp)/(self.max_temp-self.min_temp)
-			t_max_count = int(round(16.*norm_max_t))
-		for i in range(t_on_count,t_max_count+1):
-			t_pixels[i] = self.MAX_PIXEL
 		t_pixels = t_pixels[::2] + t_pixels[1::2]
 				
 		# Humidity Bar
 		h_pixels = []
 		
-		norm_h = self.humidity/100.
-		h_on_count = int(round(16.*norm_h))
-		h_off_count = 16-h_on_count
-		
-		if self.humidity <= self.good_humidity:
-			h_pixels.extend([self.GOOD_PIXEL] * h_on_count)
-		elif self.humidity <= self.bad_humidity:
-			h_pixels.extend([self.WARN_PIXEL] * h_on_count)
+		if self.humidity >= self.max_humid:
+			h_on_count = self.bar_npix
+		elif self.humidity < self.min_humid:
+			h_on_count = 0
 		else:
-			h_pixels.extend([self.BAD_PIXEL] * h_on_count)
+			norm_h = (self.humidity-self.min_humid)/self.humid_range
+			h_on_count = int(self.bar_npix*norm_h)
 		
+		h_grad = self.polylinear_color_gradient(self.pix_grad,self.h_weights)
+		h_pixels.extend(h_grad[:h_on_count])
+		
+		h_off_count = self.bar_npix-h_on_count
 		h_pixels.extend([self.OFF_PIXEL] * h_off_count)
-		
-		if self.humidity > self.max_recorded_humidity:
-			self.max_recorded_humidity = self.humidity
-		norm_max_h = self.max_recorded_humidity/100.
-		h_max_count = int(round(16.*norm_max_h))
-		for i in range(h_on_count,h_max_count+1):
-			h_pixels[i] = self.MAX_PIXEL
 		
 		h_pixels = h_pixels[::2] + h_pixels[1::2]
 		
@@ -311,18 +315,48 @@ class EMSenseHat(SenseHat):
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		pixels.extend(h_pixels)
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
-		
+				
 		self.set_pixels(pixels)
 
 	def alert(self,avgtemp,avghumid):
 		self.set_rotation(0)
 		msg = ""
-		if avgtemp > self.bad_temp:
-			msg += " TEMP: {}C".format(round(avgtemp,0))
 		if avghumid > self.bad_humidity:
-			msg += " HUMID: {}%".format(round(avghumid,0))
+			msg += " {}%RH".format(int(round(avghumid,0)))
+		if avgtemp > self.bad_temp:
+			msg += " {}C".format(int(round(avgtemp,0)))
 		if msg != "":
 			self.show_message("ALERT! {}".format(msg),text_colour=self.ALERT_PIXEL)
+
+	# Neat discussion of color gradients and source of following code:
+	# http://bsou.io/posts/color-gradients-with-python
+
+	def linear_color_gradient(self, s, f, n=16):
+		'''
+		returns a gradient list of (n) colors between
+		two rgb colors (s,f).
+		'''
+		# Initilize a list of the output colors with the starting color
+		rgb = [s]
+		# Calcuate a color at each evenly spaced value of t from 1 to n
+		for t in range(1, n+1):
+			# Interpolate RGB vector for color at the current value of t
+			curr_vector = [int(s[j] + (float(t)/(n+1-1))*(f[j]-s[j])) for j in range(3)]
+			# Add it to our list of output colors
+			rgb.append(curr_vector)
+		return rgb
+
+	def polylinear_color_gradient(self,colors,wts):
+		'''
+		returns a list of colors forming linear gradients between
+		all sequential pairs of colors. "n" specifies the total
+		number of desired output colors
+		'''
+		pcgrad = []
+		for col in range(len(colors)-1):
+			lcgrad = self.linear_color_gradient(colors[col], colors[col+1], wts[col])
+			pcgrad.extend(lcgrad[1:])
+		return pcgrad
 
 class AttachmentHandler(emdash.handlers.FileHandler):
 
