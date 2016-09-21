@@ -216,7 +216,6 @@ class EMSenseHat(SenseHat):
 	
 	max_recorded_temp = 0.
 	max_recorded_humidity = 0.
-	#max_recorded_pressure = 0.
 	
 	good_temp = 28.
 	bad_temp = 32.
@@ -224,10 +223,7 @@ class EMSenseHat(SenseHat):
 	good_humidity = 35.
 	bad_humidity = 45.
 	
-	#good_pressure = 1100. # need sane values.
-	#bad_pressure = 1500.
-	
-	max_temp = 37.7 # temperature at which all LEDs will be displayed
+	max_temp = 37.7
 	min_temp = 0.0
 	
 	max_pressure = 1600.
@@ -360,95 +356,3 @@ if __name__ == "__main__":
 		main()
 	except:
 		os.execv(EXECUTABLE,sys.argv)
-
-
-	#def update_display_orig(self):
-	#	self.auto_rotate()
-	#	
-	#	h_pixels = []
-	#	h_on_count = int(32*(self.humidity/100.))
-	#	h_off_count = 32-h_on_count
-	#	h_pixels.extend([self.ON_H_PIXEL] * h_on_count)
-	#	h_pixels.extend([self.OFF_PIXEL] * h_off_count)
-	#	
-	#	if self.humidity > self.max_recorded_humidity:
-	#		self.max_recorded_humidity = self.humidity
-	#	
-	#	if self.humidity < self.min_recorded_humidity:
-	#		self.min_recorded_humidity = self.humidity
-	#	
-	#	h_max_pixel = int(32*(self.max_recorded_humidity / 100.))
-	#	h_pixels[h_max_pixel] = self.MAXMIN_PIXEL
-	#	
-	#	h_avg_pixel = int(32*(self.acceptable_humidity / 100.))
-	#	h_pixels[h_avg_pixel] = self.AVG_PIXEL
-	#	
-	#	h_min_pixel = int(32*(self.min_recorded_humidity / 100.))
-	#	h_pixels[h_min_pixel] = self.MAXMIN_PIXEL
-	#	
-	#	t_pixels = []
-	#	if self.temp > self.max_temp:
-	#		t_on_count = 32
-	#	elif self.temp < 0:
-	#		t_on_count = 0
-	#	else:
-	#		t_on_count = int(32*(self.temp/self.max_temp))
-	#	t_off_count = 32-t_on_count
-	#	t_pixels.extend([self.ON_T_PIXEL] * t_on_count)
-	#	t_pixels.extend([self.OFF_PIXEL] * t_off_count)
-	#	
-	#	if self.temp > self.max_recorded_temp:
-	#		self.max_recorded_temp = self.temp
-	#	
-	#	if self.temp < self.min_recorded_temp:
-	#		self.min_recorded_temp = self.temp
-	#	
-	#	t_max_pixel = int(32*(self.max_recorded_temp / self.max_temp))
-	#	t_pixels[t_max_pixel] = self.MAXMIN_PIXEL
-	#	
-	#	t_avg_pixel = int(32*(self.acceptable_temp / self.max_temp))
-	#	t_pixels[t_avg_pixel] = self.AVG_PIXEL
-	#	
-	#	t_min_pixel = int(32*(self.min_recorded_temp / self.max_temp))
-	#	t_pixels[t_min_pixel] = self.MAXMIN_PIXEL
-	#	
-	#	pixels = []
-	#	pixels.extend(h_pixels)
-	#	pixels.extend(t_pixels)
-	#	
-	#	self.set_pixels(pixels)
-
-
-#########################################33
-
-
-		# Pressure Bar (pun definitely intended)
-		#p_pixels = []
-		#if self.pressure > self.max_pressure:
-		#	p_on_count = 16
-		#elif self.pressure < self.min_pressure:
-		#	p_on_count = 0
-		#else:
-		#	norm_p = (self.max_pressure-self.pressure)/(self.max_pressure-self.min_pressure)
-		#	p_on_count = int(16.*norm_p)
-		#p_off_count = 16-p_on_count
-		#if self.pressure <= self.good_pressure:
-		#	p_pixels.extend([self.GOOD_PIXEL] * p_on_count)
-		#elif self.humidity <= self.bad_pressure:
-		#	p_pixels.extend([self.WARN_PIXEL] * p_on_count)
-		#else:
-		#	p_pixels.extend([self.BAD_PIXEL] * p_on_count)
-		#p_pixels.extend([self.OFF_PIXEL] * p_off_count)
-		#if self.max_recorded_pressure > self.max_pressure:
-		#	p_max_count = 16
-		#elif self.max_recorded_pressure < self.min_pressure:
-		#	p_max_count = 0
-		#else:
-		#	norm_max_p = (self.max_pressure-self.max_recorded_pressure)/(self.max_pressure-self.min_pressure)
-		#	p_max_count = int(16.*norm_max_p)
-		#for i in range(p_on_count,p_max_count+1):
-		#	p_pixels[i] = self.MAX_PIXEL
-		#p_pixels = p_pixels[::2] + p_pixels[1::2]
-		#if self.pressure > self.max_recorded_pressure:
-		#	self.max_recorded_pressure = self.pressure
-		#pixels.extend(p_pixels)		
