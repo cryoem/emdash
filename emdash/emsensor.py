@@ -40,17 +40,15 @@ def main():
 	while logged_in is False:
 		try:
 			print("LOGGING IN...")
-			try:
-				db = config.db()
-				ctxid = db.login(config.get("username"),config.get("password"))
-			except:
-				db = jsonrpc.proxy.JSONRPCProxy(config.get("host"))
-				ctxid = db.login(config.get("username"),config.get("password"))
+			db = config.db()
+			ctxid = db.login(config.get("username"),config.get("password"))
 			emdash.config.set("ctxid",ctxid)
 			logged_in = True
 			print("SUCCESS.")
+			context = db.checkcontext()
+			print("Context: {}".format(context[1]))
 		except Exception,e:
-			print("FAILED ({}). Will try again in 5 seconds.".format(e.msg))
+			print("FAILED ({}). Will try again in 5 seconds.".format(e))
 			logged_in = False
 			time.sleep(5)
 		sys.stdout.flush()
@@ -93,19 +91,9 @@ def main():
 			if this.minute != last["minute"]:
 				avg = np.mean(samples,axis=0)
 				log.write(avg)
-				rec = log.upload(db) ## DEBUG
+				#rec = log.upload(db) ## DEBUG
 				samples = []
 				last["minute"] = this.minute
-			
-			# Every hour
-			if this.hour != last["hour"] and this.hour != 0:
-				readout = log.read()
-				sofar = np.mean(readout,axis=0)
-				if sofar[0] > high_temp:
-					sense.high_temp_alert(sofar[0] )
-				if sofar[1] > high_humid:
-					sense.high_humid_alert(sofar[1])
-				last["hour"] = this.hour
 			
 			# Every day
 			if this.day != last["day"]:
@@ -117,6 +105,16 @@ def main():
 				sense.reset_maxima()
 				last["day"] = this.day
 			
+			# Every hour (alerts)
+			if this.hour != last["hour"]:
+				#readout = log.read()
+				#sofar = np.mean(readout,axis=0)
+				#if sofar[0] > high_temp:
+				#	sense.high_temp_alert(sofar[0] )
+				#if sofar[1] > high_humid:
+				#	sense.high_humid_alert(sofar[1])
+				last["hour"] = this.hour
+
 			for f, mtime in WATCHED_FILES_MTIMES:
 				if getmtime(f) != mtime:
 					os.execv(EXECUTABLE,sys.argv)
@@ -210,16 +208,30 @@ class EMSensorLog:
 		self.start_date = gettime()
 
 class EMSenseHat(SenseHat):
-
-	ON_H_PIXEL=[0,0,255]
-	ON_T_PIXEL=[255,0,0]
-	READ_PIXEL=[255,255,255]
 	OFF_PIXEL=[0,0,0]
+	MAX_PIXEL = [128,128,128]
+	GOOD_PIXEL = [0,128,0]
+	BAD_PIXEL = [128,0,0]
+	WARN_PIXEL = [128,128,0]
 	
 	max_recorded_temp = 0.
 	max_recorded_humidity = 0.
+	#max_recorded_pressure = 0.
+	
+	good_temp = 28.
+	bad_temp = 32.
+	
+	good_humidity = 35.
+	bad_humidity = 45.
+	
+	#good_pressure = 1100. # need sane values.
+	#bad_pressure = 1500.
 	
 	max_temp = 37.7 # temperature at which all LEDs will be displayed
+	min_temp = 15.0
+	
+	max_pressure = 1600.
+	min_pressure = 750.
 	
 	def get_environment(self,rnd=1):
 		T = round(self.temperature,rnd)
@@ -229,7 +241,7 @@ class EMSenseHat(SenseHat):
 	
 	def reset_maxima(self):
 		self.max_recorded_humidity = 0.
-		self.max_recorded_temperature = 0.
+		self.max_recorded_temp = 0.
 	
 	def auto_rotate(self):
 		ar = self.get_accelerometer_raw()
@@ -244,40 +256,103 @@ class EMSenseHat(SenseHat):
 	def update_display(self):
 		self.auto_rotate()
 		
-		h_pixels = []
-		h_on_count = int(32*(self.humidity/100.))
-		h_off_count = 32-h_on_count
-		h_pixels.extend([self.ON_H_PIXEL] * h_on_count)
-		h_pixels.extend([self.OFF_PIXEL] * h_off_count)
-		
 		if self.humidity > self.max_recorded_humidity:
 			self.max_recorded_humidity = self.humidity
-		
-		h_max_pixel = int(32*(self.max_recorded_humidity / 100.))
-		h_pixels[h_max_pixel] = self.READ_PIXEL
-		
-		t_pixels = []
-		if self.temp > self.max_temp:
-			t_on_count = 32
-		elif self.temp < 0:
-			t_on_count = 0
-		else:
-			t_on_count = int(32*(self.temp/self.max_temp))
-		t_off_count = 32-t_on_count
-		t_pixels.extend([self.ON_T_PIXEL] * t_on_count)
-		t_pixels.extend([self.OFF_PIXEL] * t_off_count)
 		
 		if self.temp > self.max_recorded_temp:
 			self.max_recorded_temp = self.temp
 		
-		t_max_pixel = int(32*(self.max_recorded_temp / self.max_temp))
-		t_pixels[t_max_pixel] = self.READ_PIXEL
+		#if self.pressure > self.max_recorded_pressure:
+		#	self.max_recorded_pressure = self.pressure
 		
 		pixels = []
-		pixels.extend(h_pixels)
-		pixels.extend(t_pixels)
 		
+		# Temperature Bar
+		t_pixels = []
+		if self.temp >= self.max_temp:
+			t_on_count = 24
+		elif self.temp < 0:
+			t_on_count = 0
+		else:
+			norm_t = (self.max_temp-self.temp)/(self.max_temp-self.min_temp)
+			t_on_count = int(24.*norm_t)
+		t_off_count = 24-t_on_count
+		if self.temp <= self.good_temp:
+			t_pixels.extend([self.GOOD_PIXEL] * t_on_count)
+		elif self.temp <= self.bad_temp:
+			t_pixels.extend([self.WARN_PIXEL] * t_on_count)
+		else:
+			t_pixels.extend([self.BAD_PIXEL] * t_on_count)
+		t_pixels.extend([self.OFF_PIXEL] * t_off_count)
+		if self.max_recorded_temp > self.max_temp:
+			t_max_count = 24
+		elif self.max_recorded_temp < self.min_temp:
+			t_max_count = 0
+		else:
+			norm_max_t = (self.max_temp-self.max_recorded_temp)/(self.max_temp-self.min_temp)
+			t_max_count = int(24.*norm_max_t)
+		for i in range(t_on_count,t_max_count+1):
+			t_pixels[i] = self.MAX_PIXEL
+		t_pixels = t_pixels[::3] + t_pixels[1::3] + t_pixels[2::3]
+		
+		# Humidity Bar
+		h_pixels = []
+		norm_h = self.humidity/100.
+		h_on_count = int(24.*norm_h)
+		h_off_count = 24-h_on_count
+		if self.humidity <= self.good_humidity:
+			h_pixels.extend([self.GOOD_PIXEL] * h_on_count)
+		elif self.humidity <= self.bad_humidity:
+			h_pixels.extend([self.WARN_PIXEL] * h_on_count)
+		else:
+			h_pixels.extend([self.BAD_PIXEL] * h_on_count)
+		h_pixels.extend([self.OFF_PIXEL] * h_off_count)
+		norm_max_h = self.max_recorded_humidity/100.
+		h_max_count = int(24.*norm_max_h)
+		for i in range(h_on_count,h_max_count+1):
+			h_pixels[i] = self.MAX_PIXEL
+		h_pixels = h_pixels[::3] + h_pixels[1::3] + h_pixels[2::3]
+		
+		# Pressure Bar
+		#p_pixels = []
+		#if self.pressure > self.max_pressure:
+		#	p_on_count = 16
+		#elif self.pressure < self.min_pressure:
+		#	p_on_count = 0
+		#else:
+		#	norm_p = (self.max_pressure-self.pressure)/(self.max_pressure-self.min_pressure)
+		#	p_on_count = int(16.*norm_p)
+		#p_off_count = 16-p_on_count
+		#if self.pressure <= self.good_pressure:
+		#	p_pixels.extend([self.GOOD_PIXEL] * p_on_count)
+		#elif self.humidity <= self.bad_pressure:
+		#	p_pixels.extend([self.WARN_PIXEL] * p_on_count)
+		#else:
+		#	p_pixels.extend([self.BAD_PIXEL] * p_on_count)
+		#p_pixels.extend([self.OFF_PIXEL] * p_off_count)
+		#if self.max_recorded_pressure > self.max_pressure:
+		#	p_max_count = 16
+		#elif self.max_recorded_pressure < self.min_pressure:
+		#	p_max_count = 0
+		#else:
+		#	norm_max_p = (self.max_pressure-self.max_recorded_pressure)/(self.max_pressure-self.min_pressure)
+		#	p_max_count = int(16.*norm_max_p)
+		#for i in range(p_on_count,p_max_count+1):
+		#	p_pixels[i] = self.MAX_PIXEL
+		#p_pixels = p_pixels[::2] + p_pixels[1::2]
+		
+		pixels.extend(t_pixels)
+		pixels.extend([self.OFF_PIXEL for i in range(8)])
+		pixels.extend([self.OFF_PIXEL for i in range(8)])
+		pixels.extend(h_pixels)
+		
+		#pixels.extend(p_pixels)
+						
 		self.set_pixels(pixels)
+
+	def generic_alert(self,value):
+		self.set_rotation(0)
+		self.show_message("ALERT!")
 
 	def high_humid_alert(self,value):
 		self.set_rotation(0)
@@ -308,3 +383,60 @@ if __name__ == "__main__":
 		main()
 	except:
 		os.execv(EXECUTABLE,sys.argv)
+
+
+	#def update_display_orig(self):
+	#	self.auto_rotate()
+	#	
+	#	h_pixels = []
+	#	h_on_count = int(32*(self.humidity/100.))
+	#	h_off_count = 32-h_on_count
+	#	h_pixels.extend([self.ON_H_PIXEL] * h_on_count)
+	#	h_pixels.extend([self.OFF_PIXEL] * h_off_count)
+	#	
+	#	if self.humidity > self.max_recorded_humidity:
+	#		self.max_recorded_humidity = self.humidity
+	#	
+	#	if self.humidity < self.min_recorded_humidity:
+	#		self.min_recorded_humidity = self.humidity
+	#	
+	#	h_max_pixel = int(32*(self.max_recorded_humidity / 100.))
+	#	h_pixels[h_max_pixel] = self.MAXMIN_PIXEL
+	#	
+	#	h_avg_pixel = int(32*(self.acceptable_humidity / 100.))
+	#	h_pixels[h_avg_pixel] = self.AVG_PIXEL
+	#	
+	#	h_min_pixel = int(32*(self.min_recorded_humidity / 100.))
+	#	h_pixels[h_min_pixel] = self.MAXMIN_PIXEL
+	#	
+	#	t_pixels = []
+	#	if self.temp > self.max_temp:
+	#		t_on_count = 32
+	#	elif self.temp < 0:
+	#		t_on_count = 0
+	#	else:
+	#		t_on_count = int(32*(self.temp/self.max_temp))
+	#	t_off_count = 32-t_on_count
+	#	t_pixels.extend([self.ON_T_PIXEL] * t_on_count)
+	#	t_pixels.extend([self.OFF_PIXEL] * t_off_count)
+	#	
+	#	if self.temp > self.max_recorded_temp:
+	#		self.max_recorded_temp = self.temp
+	#	
+	#	if self.temp < self.min_recorded_temp:
+	#		self.min_recorded_temp = self.temp
+	#	
+	#	t_max_pixel = int(32*(self.max_recorded_temp / self.max_temp))
+	#	t_pixels[t_max_pixel] = self.MAXMIN_PIXEL
+	#	
+	#	t_avg_pixel = int(32*(self.acceptable_temp / self.max_temp))
+	#	t_pixels[t_avg_pixel] = self.AVG_PIXEL
+	#	
+	#	t_min_pixel = int(32*(self.min_recorded_temp / self.max_temp))
+	#	t_pixels[t_min_pixel] = self.MAXMIN_PIXEL
+	#	
+	#	pixels = []
+	#	pixels.extend(h_pixels)
+	#	pixels.extend(t_pixels)
+	#	
+	#	self.set_pixels(pixels)
