@@ -273,18 +273,19 @@ class EMSenseHat(SenseHat):
 		self.avg_rec_temp = avgt
 		self.avg_rec_humid = avgh
 	
-	def auto_rotate(self):
-		ar = self.get_accelerometer_raw()
-		x = round(ar["x"])
-		y = round(ar["y"])
-		if x == -1: rot=0
-		elif y == -1: rot=90
-		elif x == 1: rot=180
-		else: rot = 270
-		self.set_rotation(rot)
+	#def auto_rotate(self):
+		#ar = self.get_accelerometer_raw()
+		#x = round(ar["x"])
+		#y = round(ar["y"])
+		#if x == -1: rot=0
+		#elif y == -1: rot=90
+		#elif x == 1: rot=180
+		#else: rot = 270
+		#self.set_rotation(rot)
 
 	def update_display(self):
-		self.auto_rotate()
+		#self.auto_rotate()
+		self.set_rotation(0)
 		
 		# Temperature Bar
 		t_pixels = []
