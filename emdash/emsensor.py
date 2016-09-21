@@ -107,12 +107,6 @@ def main():
 			
 			# Every hour (alerts)
 			if this.hour != last["hour"]:
-				#readout = log.read()
-				#sofar = np.mean(readout,axis=0)
-				#if sofar[0] > high_temp:
-				#	sense.high_temp_alert(sofar[0] )
-				#if sofar[1] > high_humid:
-				#	sense.high_humid_alert(sofar[1])
 				last["hour"] = this.hour
 
 			for f, mtime in WATCHED_FILES_MTIMES:
@@ -253,6 +247,7 @@ class EMSenseHat(SenseHat):
 		self.auto_rotate()
 		
 		# Temperature Bar
+		
 		t_pixels = []
 		
 		if self.temp >= self.max_temp:
@@ -271,6 +266,7 @@ class EMSenseHat(SenseHat):
 			t_pixels.extend([self.WARN_PIXEL] * t_on_count)
 		else:
 			t_pixels.extend([self.BAD_PIXEL] * t_on_count)
+			self.generic_alert()
 		
 		t_pixels.extend([self.OFF_PIXEL] * t_off_count)
 		
@@ -289,6 +285,7 @@ class EMSenseHat(SenseHat):
 		t_pixels = t_pixels[::3] + t_pixels[1::3] + t_pixels[2::3]
 		
 		# Humidity Bar
+		
 		h_pixels = []
 		
 		norm_h = self.humidity/100.
@@ -301,6 +298,7 @@ class EMSenseHat(SenseHat):
 			h_pixels.extend([self.WARN_PIXEL] * h_on_count)
 		else:
 			h_pixels.extend([self.BAD_PIXEL] * h_on_count)
+			self.generic_alert()
 		
 		h_pixels.extend([self.OFF_PIXEL] * h_off_count)
 		
