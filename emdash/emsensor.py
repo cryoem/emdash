@@ -312,32 +312,31 @@ class EMSenseHat(SenseHat):
 		if self.temp < self.min_rec_temp:
 			self.min_rec_temp = self.temp
 
-		t_meta_col = []
+		#t_meta_col = []
 		
-		if self.max_rec_temp > self.max_temp:
-			max_t_on_count = self.bar_npix/2
-		elif self.max_rec_temp < self.min_temp:
-			max_t_on_count = 0
-		else:
-			max_t_on_count = int((self.bar_npix/2)*(self.max_rec_humid-self.min_humid)/self.humid_range)
+		#if self.max_rec_temp > self.max_temp:
+			#max_t_on_count = self.bar_npix/2
+		#elif self.max_rec_temp < self.min_temp:
+			#max_t_on_count = 0
+		#else:
+			#max_t_on_count = int((self.bar_npix/2)*(self.max_rec_humid-self.min_humid)/self.humid_range)
 		
-		max_t_on_count = int((self.bar_npix/2)*(self.max_rec_temp-self.min_temp)/self.temp_range)
-		t_meta_col.extend([self.MAX_PIXEL for i in range(max_t_on_count)])
-		max_t_off_count = (self.bar_npix/2) - max_t_on_count
-		t_meta_col.extend([self.OFF_PIXEL for i in range(max_t_off_count)])
+		#t_meta_col.extend([self.MAX_PIXEL for i in range(max_t_on_count)])
+		#max_t_off_count = (self.bar_npix/2) - max_t_on_count
+		#t_meta_col.extend([self.OFF_PIXEL for i in range(max_t_off_count)])
 		
-		if self.min_rec_temp > self.min_temp and self.min_rec_temp < self.max_temp:
-			min_t_idx = int((self.bar_npix/2)*(self.min_rec_temp-self.min_temp)/self.temp_range)
-			for i in range(min_t_idx):
-				t_meta_col[i] = self.OFF_PIXEL
+		#if self.min_rec_temp > self.min_temp and self.min_rec_temp < self.max_temp:
+			#min_t_idx = int((self.bar_npix/2)*(self.min_rec_temp-self.min_temp)/self.temp_range)
+			#for i in range(min_t_idx):
+				#t_meta_col[i] = self.OFF_PIXEL
 		
-		if self.avg_rec_temp > self.max_temp:
-			t_meta_col[-1] = self.AVG_PIXEL
-		elif self.avg_rec_temp < self.min_temp:
-			t_meta_col[0] = self.AVG_PIXEL
-		else:
-			avg_t_idx = int((self.bar_npix/2)*(self.avg_rec_temp-self.min_temp)/self.temp_range)
-			t_meta_col[avg_t_idx] = self.AVG_PIXEL
+		#if self.avg_rec_temp > self.max_temp:
+			#t_meta_col[-1] = self.AVG_PIXEL
+		#elif self.avg_rec_temp < self.min_temp:
+			#t_meta_col[0] = self.AVG_PIXEL
+		#else:
+			#avg_t_idx = int((self.bar_npix/2)*(self.avg_rec_temp-self.min_temp)/self.temp_range)
+			#t_meta_col[avg_t_idx] = self.AVG_PIXEL
 
 		# Humidity Bar
 		h_pixels = []
@@ -364,44 +363,46 @@ class EMSenseHat(SenseHat):
 		if self.humidity < self.min_rec_humid:
 			self.min_rec_humid = self.humidity
 		
-		h_meta_col = []
+		#h_meta_col = []
 		
-		if self.max_rec_humid > self.max_humid:
-			max_h_on_count = self.bar_npix/2
-		elif self.max_rec_humid < self.min_humid:
-			max_h_on_count = 0
-		else:
-			max_h_on_count = int((self.bar_npix/2)*(self.max_rec_humid-self.min_humid)/self.humid_range)
+		#if self.max_rec_humid > self.max_humid:
+			#max_h_on_count = self.bar_npix/2
+		#elif self.max_rec_humid < self.min_humid:
+			#max_h_on_count = 0
+		#else:
+			#max_h_on_count = int((self.bar_npix/2)*(self.max_rec_humid-self.min_humid)/self.humid_range)
 		
-		h_meta_col.extend([self.MAX_PIXEL for i in range(max_h_on_count)])
-		max_h_off_count = (self.bar_npix/2) - max_h_on_count
-		h_meta_col.extend([self.OFF_PIXEL for i in range(max_h_off_count)])
-
-		if self.min_rec_humid > self.min_humid and self.min_rec_humid < self.max_humid:
-			min_h_idx = int((self.bar_npix/2)*(self.min_rec_humid-self.min_humid)/self.humid_range)
-			for i in range(min_h_idx):
-				h_meta_col[i] = self.OFF_PIXEL
-		else:
-			for i in range(len(h_meta_col)-1):
-				h_meta_col[i] = self.OFF_PIXEL
+		#h_meta_col.extend([self.MAX_PIXEL for i in range(max_h_on_count)])
+		#max_h_off_count = (self.bar_npix/2) - max_h_on_count
+		#h_meta_col.extend([self.OFF_PIXEL for i in range(max_h_off_count)])
 		
-		if self.avg_rec_humid > self.min_humid:
-			h_meta_col[-1] = self.AVG_PIXEL
-		elif self.avg_rec_humid < self.max_humid:
-			h_meta_col[0] = self.AVG_PIXEL
-		else:
-			avg_h_idx = int((self.bar_npix/2)*(self.avg_rec_humid-self.min_humid)/self.humid_range)
-			h_meta_col[avg_h_idx] = self.AVG_PIXEL
+		#if self.min_rec_humid > self.min_humid and self.min_rec_humid < self.max_humid:
+			#min_h_idx = int((self.bar_npix/2)*(self.min_rec_humid-self.min_humid)/self.humid_range)
+			#for i in range(min_h_idx):
+				#h_meta_col[i] = self.OFF_PIXEL
+		#else:
+			#for i in range(len(h_meta_col)):
+				#h_meta_col[i] = self.OFF_PIXEL
+		
+		#if self.avg_rec_humid > self.min_humid:
+			#h_meta_col[-1] = self.AVG_PIXEL
+		#elif self.avg_rec_humid < self.max_humid:
+			#h_meta_col[0] = self.AVG_PIXEL
+		#else:
+			#avg_h_idx = int((self.bar_npix/2)*(self.avg_rec_humid-self.min_humid)/self.humid_range)
+			#h_meta_col[avg_h_idx] = self.AVG_PIXEL
 
 		pixels = []
 		
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
-		pixels.extend(t_pixels)
-		pixels.extend(t_meta_col)
+		pixels.extend(t_pixels) # 16
+		pixels.extend([self.OFF_PIXEL for i in range(8)])
+		#pixels.extend(t_meta_col) # 8
 		
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
-		pixels.extend(h_pixels)
-		pixels.extend(h_meta_col)
+		pixels.extend(h_pixels) # 16
+		#pixels.extend(h_meta_col) # 8
+		pixels.extend([self.OFF_PIXEL for i in range(8)])
 
 		#print(len(pixels),len(h_meta_col),len(t_meta_col),len(t_pixels),len(h_pixels))
 		
@@ -411,9 +412,9 @@ class EMSenseHat(SenseHat):
 		self.set_rotation(0)
 		msg = ""
 		if avghumid > self.bad_humidity:
-			msg += " {}%RH".format(int(round(avghumid,0)))
+			msg += ' {}%RH'.format(int(round(avghumid,0)))
 		if avgtemp > self.bad_temp:
-			msg += " {}C".format(int(round(avgtemp,0)))
+			msg += ' {}C'.format(int(round(avgtemp,0)))
 		if msg != "":
 			self.show_message("ALERT! {}".format(msg),text_colour=self.ALERT_PIXEL)
 
@@ -425,7 +426,6 @@ class EMSenseHat(SenseHat):
 		returns a gradient list of (n) colors between
 		two rgb colors (s,f).
 		'''
-		# Initilize a list of the output colors with the starting color
 		rgb = [s]
 		# Calcuate a color at each evenly spaced value of t from 1 to n
 		for t in range(1, n+1):
