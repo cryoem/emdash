@@ -91,21 +91,19 @@ def main():
 			if this.minute != last["minute"]:
 				avg = np.mean(samples,axis=0)
 				log.write(avg)
-				#rec = log.upload(db) ## DEBUG
 				samples = []
+				sense.alert(avg[0],avg[1])
 				last["minute"] = this.minute
 			
 			# Every day
 			if this.day != last["day"]:
-				print("Uploading...")
 				sys.stdout.flush()
 				rec = log.upload(db)
-				print("Success")
 				sys.stdout.flush()
 				sense.reset_maxima()
 				last["day"] = this.day
 			
-			# Every hour (alerts)
+			# Every hour
 			if this.hour != last["hour"]:
 				last["hour"] = this.hour
 
@@ -207,21 +205,19 @@ class EMSenseHat(SenseHat):
 	GOOD_PIXEL = [0,100,100]
 	BAD_PIXEL = [100,0,0]
 	WARN_PIXEL = [100,100,0]
+	ALERT_PIXEL = [100,100,100]
 	
 	max_recorded_temp = 0.
 	max_recorded_humidity = 0.
 	
-	good_temp = 28.
-	bad_temp = 32.
+	good_temp = 23.
+	bad_temp = 28.
 	
 	good_humidity = 35.
 	bad_humidity = 45.
 	
-	max_temp = 37.7
-	min_temp = 0.0
-	
-	max_pressure = 1600.
-	min_pressure = 750.
+	max_temp = 40.0
+	min_temp = 10.0
 	
 	def get_environment(self,rnd=1):
 		T = round(self.temperature,rnd)
@@ -247,18 +243,17 @@ class EMSenseHat(SenseHat):
 		self.auto_rotate()
 		
 		# Temperature Bar
-		
 		t_pixels = []
 		
 		if self.temp >= self.max_temp:
-			t_on_count = 24
+			t_on_count = 16
 		elif self.temp < 0:
 			t_on_count = 0
 		else:
-			norm_t = (self.max_temp-self.temp)/(self.max_temp-self.min_temp)
-			t_on_count = int(round(24.*norm_t))
+			norm_t = (self.temp-self.min_temp)/(self.max_temp-self.min_temp)
+			t_on_count = int(round(16.*norm_t))
 		
-		t_off_count = 24-t_on_count
+		t_off_count = 16-t_on_count
 		
 		if self.temp <= self.good_temp:
 			t_pixels.extend([self.GOOD_PIXEL] * t_on_count)
@@ -266,7 +261,6 @@ class EMSenseHat(SenseHat):
 			t_pixels.extend([self.WARN_PIXEL] * t_on_count)
 		else:
 			t_pixels.extend([self.BAD_PIXEL] * t_on_count)
-			self.generic_alert()
 		
 		t_pixels.extend([self.OFF_PIXEL] * t_off_count)
 		
@@ -274,23 +268,22 @@ class EMSenseHat(SenseHat):
 			self.max_recorded_temp = self.temp
 		
 		if self.max_recorded_temp > self.max_temp:
-			t_max_count = 24
+			t_max_count = 16
 		elif self.max_recorded_temp < self.min_temp:
 			t_max_count = 0
 		else:
-			norm_max_t = (self.max_temp-self.max_recorded_temp)/(self.max_temp-self.min_temp)
-			t_max_count = int(round(24.*norm_max_t))
+			norm_max_t = (self.max_recorded_temp-self.min_temp)/(self.max_temp-self.min_temp)
+			t_max_count = int(round(16.*norm_max_t))
 		for i in range(t_on_count,t_max_count+1):
 			t_pixels[i] = self.MAX_PIXEL
-		t_pixels = t_pixels[::3] + t_pixels[1::3] + t_pixels[2::3]
-		
+		t_pixels = t_pixels[::2] + t_pixels[1::2]
+				
 		# Humidity Bar
-		
 		h_pixels = []
 		
 		norm_h = self.humidity/100.
-		h_on_count = int(round(24.*norm_h))
-		h_off_count = 24-h_on_count
+		h_on_count = int(round(16.*norm_h))
+		h_off_count = 16-h_on_count
 		
 		if self.humidity <= self.good_humidity:
 			h_pixels.extend([self.GOOD_PIXEL] * h_on_count)
@@ -298,53 +291,48 @@ class EMSenseHat(SenseHat):
 			h_pixels.extend([self.WARN_PIXEL] * h_on_count)
 		else:
 			h_pixels.extend([self.BAD_PIXEL] * h_on_count)
-			self.generic_alert()
 		
 		h_pixels.extend([self.OFF_PIXEL] * h_off_count)
 		
 		if self.humidity > self.max_recorded_humidity:
 			self.max_recorded_humidity = self.humidity
 		norm_max_h = self.max_recorded_humidity/100.
-		h_max_count = int(round(24.*norm_max_h))
+		h_max_count = int(round(16.*norm_max_h))
 		for i in range(h_on_count,h_max_count+1):
 			h_pixels[i] = self.MAX_PIXEL
 		
-		h_pixels = h_pixels[::3] + h_pixels[1::3] + h_pixels[2::3]
+		h_pixels = h_pixels[::2] + h_pixels[1::2]
 		
 		pixels = []
+		
+		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		pixels.extend(t_pixels)
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		pixels.extend(h_pixels)
+		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		
 		self.set_pixels(pixels)
 
-	def generic_alert(self,value):
+	def alert(self,avgtemp,avghumid):
 		self.set_rotation(0)
-		self.show_message("ALERT!")
-
-	def high_humid_alert(self,value):
-		self.set_rotation(0)
-		self.show_message("ALERT!")
-		self.show_message("HIGH HUMIDITY: {:0.0f}%".format(value),text_colour=self.ON_H_PIXEL)
-
-	def high_temp_alert(self,value):
-		self.set_rotation(0)
-		self.show_message("ALERT!")
-		self.show_message("HIGH TEMP: {:0.0f}C".format(value),text_colour=self.ON_T_PIXEL)
+		msg = ""
+		if avgtemp > self.bad_temp:
+			msg += " TEMP: {}C".format(round(avgtemp,0))
+		if avghumid > self.bad_humidity:
+			msg += " HUMID: {}%".format(round(avghumid,0))
+		if msg != "":
+			self.show_message("ALERT! {}".format(msg),text_colour=self.ALERT_PIXEL)
 
 class AttachmentHandler(emdash.handlers.FileHandler):
 
     def upload(self):
 		target = self.target or self.data.get('_target')
-		
 		rec = {}
 		rec['_format'] = 'json'
 		rec['ctxid'] = emdash.config.get('ctxid')
 		rec[self.param] = emdash.transport.UploadFile(self.name,'rb')
-		
 		rec = self._upload_put('/record/%s/edit'%(target),rec)
-		
 		return rec
 
 if __name__ == "__main__":
