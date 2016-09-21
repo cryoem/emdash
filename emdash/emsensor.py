@@ -256,19 +256,11 @@ class EMSenseHat(SenseHat):
 	def update_display(self):
 		self.auto_rotate()
 		
-		if self.humidity > self.max_recorded_humidity:
-			self.max_recorded_humidity = self.humidity
-		
-		if self.temp > self.max_recorded_temp:
-			self.max_recorded_temp = self.temp
-		
-		#if self.pressure > self.max_recorded_pressure:
-		#	self.max_recorded_pressure = self.pressure
-		
 		pixels = []
 		
 		# Temperature Bar
 		t_pixels = []
+		
 		if self.temp >= self.max_temp:
 			t_on_count = 24
 		elif self.temp < 0:
@@ -276,14 +268,21 @@ class EMSenseHat(SenseHat):
 		else:
 			norm_t = (self.max_temp-self.temp)/(self.max_temp-self.min_temp)
 			t_on_count = int(24.*norm_t)
+		
 		t_off_count = 24-t_on_count
+		
 		if self.temp <= self.good_temp:
 			t_pixels.extend([self.GOOD_PIXEL] * t_on_count)
 		elif self.temp <= self.bad_temp:
 			t_pixels.extend([self.WARN_PIXEL] * t_on_count)
 		else:
 			t_pixels.extend([self.BAD_PIXEL] * t_on_count)
+		
 		t_pixels.extend([self.OFF_PIXEL] * t_off_count)
+		
+		if self.temp > self.max_recorded_temp:
+			self.max_recorded_temp = self.temp
+		
 		if self.max_recorded_temp > self.max_temp:
 			t_max_count = 24
 		elif self.max_recorded_temp < self.min_temp:
@@ -297,20 +296,29 @@ class EMSenseHat(SenseHat):
 		
 		# Humidity Bar
 		h_pixels = []
+		
 		norm_h = self.humidity/100.
+		
 		h_on_count = int(24.*norm_h)
 		h_off_count = 24-h_on_count
+		
 		if self.humidity <= self.good_humidity:
 			h_pixels.extend([self.GOOD_PIXEL] * h_on_count)
 		elif self.humidity <= self.bad_humidity:
 			h_pixels.extend([self.WARN_PIXEL] * h_on_count)
 		else:
 			h_pixels.extend([self.BAD_PIXEL] * h_on_count)
+		
 		h_pixels.extend([self.OFF_PIXEL] * h_off_count)
+		
+		if self.humidity > self.max_recorded_humidity:
+			self.max_recorded_humidity = self.humidity
+		
 		norm_max_h = self.max_recorded_humidity/100.
 		h_max_count = int(24.*norm_max_h)
 		for i in range(h_on_count,h_max_count+1):
 			h_pixels[i] = self.MAX_PIXEL
+		
 		h_pixels = h_pixels[::3] + h_pixels[1::3] + h_pixels[2::3]
 		
 		# Pressure Bar
@@ -340,6 +348,8 @@ class EMSenseHat(SenseHat):
 		#for i in range(p_on_count,p_max_count+1):
 		#	p_pixels[i] = self.MAX_PIXEL
 		#p_pixels = p_pixels[::2] + p_pixels[1::2]
+		#if self.pressure > self.max_recorded_pressure:
+		#	self.max_recorded_pressure = self.pressure
 		
 		pixels.extend(t_pixels)
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
