@@ -252,8 +252,6 @@ class EMSenseHat(SenseHat):
 	def update_display(self):
 		self.auto_rotate()
 		
-		pixels = []
-		
 		# Temperature Bar
 		t_pixels = []
 		
@@ -294,7 +292,6 @@ class EMSenseHat(SenseHat):
 		h_pixels = []
 		
 		norm_h = self.humidity/100.
-		
 		h_on_count = int(round(24.*norm_h))
 		h_off_count = 24-h_on_count
 		
@@ -316,11 +313,12 @@ class EMSenseHat(SenseHat):
 		
 		h_pixels = h_pixels[::3] + h_pixels[1::3] + h_pixels[2::3]
 		
+		pixels = []
 		pixels.extend(t_pixels)
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		pixels.extend(h_pixels)
-						
+		
 		self.set_pixels(pixels)
 
 	def generic_alert(self,value):
