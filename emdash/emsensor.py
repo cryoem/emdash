@@ -69,10 +69,10 @@ def main():
 	last["hour"] = int(this.hour)
 	last["day"] = int(this.day)
 
-	high_temp = 25.  # alert if temperature > this
-	high_humid = 45. # alert if humidity > this
-
 	samples = []
+	
+	daily_temps = []
+	daily_humids = []
 
 	log = EMSensorLog(config)
 	
@@ -84,6 +84,10 @@ def main():
 			if this.second != last["second"]:
 				data = sense.get_environment()
 				samples.append(data)
+				daily_temps.append(data[0])
+				daily_humids.append(data[1])
+				sense.avg_rec_temp = np.mean(daily_temps)
+				sense.avg_rec_humid = np.mean(daily_humids)
 				sense.update_display()
 				last["second"] = this.second
 			
@@ -99,8 +103,9 @@ def main():
 			if this.day != last["day"]:
 				sys.stdout.flush()
 				rec = log.upload(db)
-				sys.stdout.flush()
-				sense.reset_maxima()
+				sense.reset_meta()
+				daily_temps = []
+				daily_humids = []
 				last["day"] = this.day
 			
 			# Every hour
@@ -183,7 +188,6 @@ class EMSensorLog:
 		record = db.record.put(rec)
 		
 		self.ah.target = record["name"]
-		
 		record = self.ah.upload()
 		
 		return record
@@ -202,11 +206,12 @@ class EMSensorLog:
 class EMSenseHat(SenseHat):
 	OFF_PIXEL=[0,0,0]
 	MAX_PIXEL = [50,50,50]
+	AVG_PIXEL = [50,0,50]
 	LOW_PIXEL = [0,100,100]
 	GOOD_PIXEL = [0,100,0]
 	WARN_PIXEL = [100,100,0]
 	BAD_PIXEL = [100,0,0]
-	ALERT_PIXEL = [100,100,100]
+	ALERT_PIXEL = [255,255,255]
 	
 	pix_grad = [LOW_PIXEL,GOOD_PIXEL,WARN_PIXEL,BAD_PIXEL,BAD_PIXEL]
 
@@ -216,18 +221,22 @@ class EMSenseHat(SenseHat):
 	min_temp = 15.0
 	temp_range = max_temp-min_temp
 	
-	good_temp = 18.0 # below this is uncomfortable for most humans
+	good_temp = 18.0
 	warn_temp = 21.5
 	bad_temp = 22.0
 	
 	t_weights = []
 	t_weights.append(int(bar_npix*(good_temp-min_temp)/temp_range))
-	t_weights.append(int(bar_npix*(warn_temp-min_temp)/temp_range)-sum(t_weights))
-	t_weights.append(int(bar_npix*(bad_temp-min_temp)/temp_range)-sum(t_weights))
+	t_weights.append(int(bar_npix*(warn_temp-min_temp)/temp_range)-sum(t_weights)-1)
+	t_weights.append(int(bar_npix*(bad_temp-min_temp)/temp_range)-sum(t_weights)+3)
 	t_weights.append(bar_npix-sum(t_weights))
 	t_weights.append(1) # dummy
 	
-	good_humidity = 20.0 # static charging common below this %RH
+	max_rec_temp = 0.
+	min_rec_temp = 100.
+	avg_rec_temp = 0.
+	
+	good_humidity = 20.0
 	warn_humidity = 31.0
 	bad_humidity = 32.0
 	
@@ -237,22 +246,32 @@ class EMSenseHat(SenseHat):
 	
 	h_weights = []
 	h_weights.append(int(bar_npix*(good_humidity-min_humid)/humid_range))
-	h_weights.append(int(bar_npix*(warn_humidity-min_humid)/humid_range)-sum(h_weights))
-	h_weights.append(int(bar_npix*(bad_humidity-min_humid)/humid_range)-sum(h_weights))
+	h_weights.append(int(bar_npix*(warn_humidity-min_humid)/humid_range)-sum(h_weights)-1)
+	h_weights.append(int(bar_npix*(bad_humidity-min_humid)/humid_range)-sum(h_weights)+3)
 	h_weights.append(bar_npix-sum(h_weights))
 	h_weights.append(1) # dummy
 	
-	print(t_weights,h_weights)
-		
+	max_rec_humid = 0.
+	min_rec_humid = 100.
+	avg_rec_humid = 0.
+	
 	def get_environment(self,rnd=1):
 		T = round(self.temperature,rnd)
 		H = round(self.humidity,rnd)
 		P = round(self.pressure,rnd)
 		return [T,H,P]
 	
-	def reset_maxima(self):
-		self.max_recorded_humidity = 0.
-		self.max_recorded_temp = 0.
+	def reset_meta(self):
+		self.max_rec_humid = 0.
+		self.max_rec_temp = 0.
+		self.min_rec_temp = 100000.
+		self.min_rec_humid = 100000.
+		self.avg_rec_temp = 0.
+		self.avg_rec_humid = 0.
+	
+	def update_avg(self,avgt,avgh):
+		self.avg_rec_temp = avgt
+		self.avg_rec_humid = avgh
 	
 	def auto_rotate(self):
 		ar = self.get_accelerometer_raw()
@@ -267,8 +286,6 @@ class EMSenseHat(SenseHat):
 	def update_display(self):
 		self.auto_rotate()
 		
-		t_grad = self.polylinear_color_gradient(self.pix_grad,self.t_weights)
-		
 		# Temperature Bar
 		t_pixels = []
 		
@@ -282,12 +299,46 @@ class EMSenseHat(SenseHat):
 		
 		t_off_count = self.bar_npix-t_on_count
 		
+		t_grad = self.polylinear_color_gradient(self.pix_grad,self.t_weights)
 		t_pixels.extend(t_grad[:t_on_count])
 		
 		t_pixels.extend([self.OFF_PIXEL] * t_off_count)
 		
 		t_pixels = t_pixels[::2] + t_pixels[1::2]
-				
+		
+		if self.temp > self.max_rec_temp:
+			self.max_rec_temp = self.temp
+		
+		if self.temp < self.min_rec_temp:
+			self.min_rec_temp = self.temp
+
+		t_meta_col = []
+		
+		if self.max_rec_temp > self.max_temp:
+			max_t_on_count = self.bar_npix/2
+		elif self.max_rec_temp < self.min_temp:
+			max_t_on_count = 0
+		else:
+			max_t_on_count = int((self.bar_npix/2)*(self.max_rec_humid-self.min_humid)/self.humid_range)
+		
+		max_t_on_count = int((self.bar_npix/2)*(self.max_rec_temp-self.min_temp)/self.temp_range)
+		t_meta_col.extend([self.MAX_PIXEL for i in range(max_t_on_count)])
+		max_t_off_count = (self.bar_npix/2) - max_t_on_count
+		t_meta_col.extend([self.OFF_PIXEL for i in range(max_t_off_count)])
+		
+		if self.min_rec_temp > self.min_temp and self.min_rec_temp < self.max_temp:
+			min_t_idx = int((self.bar_npix/2)*(self.min_rec_temp-self.min_temp)/self.temp_range)
+			for i in range(min_t_idx):
+				t_meta_col[i] = self.OFF_PIXEL
+		
+		if self.avg_rec_temp > self.max_temp:
+			t_meta_col[-1] = self.AVG_PIXEL
+		elif self.avg_rec_temp < self.min_temp:
+			t_meta_col[0] = self.AVG_PIXEL
+		else:
+			avg_t_idx = int((self.bar_npix/2)*(self.avg_rec_temp-self.min_temp)/self.temp_range)
+			t_meta_col[avg_t_idx] = self.AVG_PIXEL
+
 		# Humidity Bar
 		h_pixels = []
 		
@@ -306,16 +357,54 @@ class EMSenseHat(SenseHat):
 		h_pixels.extend([self.OFF_PIXEL] * h_off_count)
 		
 		h_pixels = h_pixels[::2] + h_pixels[1::2]
+
+		if self.humidity > self.max_rec_humid:
+			self.max_rec_humid = self.humidity
 		
+		if self.humidity < self.min_rec_humid:
+			self.min_rec_humid = self.humidity
+		
+		h_meta_col = []
+		
+		if self.max_rec_humid > self.max_humid:
+			max_h_on_count = self.bar_npix/2
+		elif self.max_rec_humid < self.min_humid:
+			max_h_on_count = 0
+		else:
+			max_h_on_count = int((self.bar_npix/2)*(self.max_rec_humid-self.min_humid)/self.humid_range)
+		
+		h_meta_col.extend([self.MAX_PIXEL for i in range(max_h_on_count)])
+		max_h_off_count = (self.bar_npix/2) - max_h_on_count
+		h_meta_col.extend([self.OFF_PIXEL for i in range(max_h_off_count)])
+
+		if self.min_rec_humid > self.min_humid and self.min_rec_humid < self.max_humid:
+			min_h_idx = int((self.bar_npix/2)*(self.min_rec_humid-self.min_humid)/self.humid_range)
+			for i in range(min_h_idx):
+				h_meta_col[i] = self.OFF_PIXEL
+		else:
+			for i in range(len(h_meta_col)-1):
+				h_meta_col[i] = self.OFF_PIXEL
+		
+		if self.avg_rec_humid > self.min_humid:
+			h_meta_col[-1] = self.AVG_PIXEL
+		elif self.avg_rec_humid < self.max_humid:
+			h_meta_col[0] = self.AVG_PIXEL
+		else:
+			avg_h_idx = int((self.bar_npix/2)*(self.avg_rec_humid-self.min_humid)/self.humid_range)
+			h_meta_col[avg_h_idx] = self.AVG_PIXEL
+
 		pixels = []
 		
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		pixels.extend(t_pixels)
-		pixels.extend([self.OFF_PIXEL for i in range(8)])
+		pixels.extend(t_meta_col)
+		
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		pixels.extend(h_pixels)
-		pixels.extend([self.OFF_PIXEL for i in range(8)])
-				
+		pixels.extend(h_meta_col)
+
+		#print(len(pixels),len(h_meta_col),len(t_meta_col),len(t_pixels),len(h_pixels))
+		
 		self.set_pixels(pixels)
 
 	def alert(self,avgtemp,avghumid):
