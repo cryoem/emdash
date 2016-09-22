@@ -23,53 +23,43 @@ WATCHED_FILES_MTIMES = [(f, getmtime(f)) for f in WATCHED_FILES]
 def gettime():
     return datetime.now(dateutil.tz.gettz())
 
-def main():	
+def printout(msg,level="LOG"):
+	sys.stdout.write("{}\t{}\t{}\n".format(gettime(),level,msg))
+	sys.stdout.flush()
+
+def main():
 	ns = emdash.config.setconfig()
 	config = emdash.config.Config()
 	
-	this = gettime()
-	print("Init: {}".format(this))
-	
-	print("Host: {}".format(config.get("host")))
-	print("User: {}".format(config.get("username")))
-	print("Protocol: {}".format(config.get("session_protocol")))
-	
-	sys.stdout.flush()
-	
+	printout("Logging into {} as {}".format(config.get("host"),config.get("username")))
 	logged_in = False
 	while logged_in is False:
 		try:
-			print("LOGGING IN...")
-			db = config.db()
-			ctxid = db.login(config.get("username"),config.get("password"))
-			emdash.config.set("ctxid",ctxid)
+			db = config.login(config.get("username"),config.get("password"))
 			logged_in = True
-			print("SUCCESS.")
 			context = db.checkcontext()
-			print("Context: {}".format(context[1]))
+			printout("Success! Context ID is {}".format(context[0]))
 		except Exception,e:
-			print("FAILED ({}). Will try again in 5 seconds.".format(e))
+			printout("Log in failed. ({}). Will try again in 10 seconds.".format(e),level="WARNING")
 			logged_in = False
-			time.sleep(5)
-		sys.stdout.flush()
+			time.sleep(10)
 	
 	room = db.record.get(config.get("room_id"))
-	print("CTXID: {}".format(ctxid))
-	print("Record #{}".format(config.get("room_id")))
-	print("Name: {}".format(room["room_name"]))
-	
-	sys.stdout.flush()
+	msg = "Creating {} records for {} (Record #{})"
+	printout(msg.format(config.get("session_protocol"),room["room_name"],config.get("room_id")))
 
 	sense = EMSenseHat()
 	sense.clear()
 	
 	sense.stick.direction_up = sense.show_maxima # up
-	sense.stick.direction_down = sense.show_current # left
-	sense.stick.direction_left = sense.show_minima # down
+	sense.stick.direction_down = sense.show_minima # left
+	sense.stick.direction_left = sense.show_current # down
 	sense.stick.direction_right = sense.show_average # right
 	
 	# this is a hack to trigger alert in background
 	sense.stick.direction_middle = sense.alert_if_bad
+	
+	this = gettime()
 	
 	last = {}
 	last["second"] = int(this.second)
@@ -96,7 +86,7 @@ def main():
 				daily_humids.append(data[1])
 				sense.avg_rec_temp = np.mean(daily_temps)
 				sense.avg_rec_humid = np.mean(daily_humids)
-				if not sense.INSIDE_CALLBACK:
+				if not sense.INSIDE_CALLBACK: # don't flicker during show_message callback
 					sense.update_display()
 				last["second"] = this.second
 			
@@ -111,10 +101,9 @@ def main():
 			
 			# Every day
 			if this.day != last["day"]:
-				sys.stdout.flush()
-				_ = log.upload(db)
-				log.new()
+				log.upload(db)
 				sense.reset_meta()
+				log = EMSensorLog(config,db)
 				daily_temps = []
 				daily_humids = []
 				last["day"] = this.day
@@ -161,6 +150,7 @@ class EMSensorLog:
 		return np.asarray(data).astype(float)
 	
 	def upload(self,db):
+		printout("Uploading...")
 		self.end_date = gettime()
 		data = self.read()
 		
@@ -194,23 +184,18 @@ class EMSensorLog:
 		rec.update()
 		
 		try:
-			record = db.record.put(rec)	
+			record = db.record.put(rec)
+			printout("Record uploaded successfully!")
+		except Exception, e:
+			printout("Failed to upload record. Exception: {}".format(e),level="ERROR")
+		
+		try:
 			self.ah.target = record["name"]
 			record = self.ah.upload()
+			printout("{} was uploaded successfully".format(self.ah.name))
 		except Exception, e:
-			record = rec
-		
-		return record
-	
-	def new(self):
-		try: # remove local file after upload is complete
-			os.unlink(self.ah.name)
-		except:
-			n = gettime()
-			print("{}\tWARNING: Failed to remove {}".format(n,self.ah.name))
-			sys.stdout.flush()
-		self.ah.name = "/home/pi/logs/{}.csv".format(self.end_date.date())
-		self.start_date = gettime()
+			printout("Failed to upload file ({}). Exception: {}".format(self.ah.name,e),level="ERROR")
+
 
 class EMSenseHat(SenseHat):
 	
@@ -270,6 +255,8 @@ class EMSenseHat(SenseHat):
 	avg_rec_humid = 0.
 	nsamples_humid = 0
 	
+	scroll = 0.08
+	
 	def get_environment(self,rnd=1):
 		T = round(self.temperature,rnd)
 		H = round(self.humidity,rnd)
@@ -294,15 +281,15 @@ class EMSenseHat(SenseHat):
 		self.nsamples_humid += 1
 		self.avg_rec_humid = (h_old + h_new) / self.nsamples_humid
 	
-	#def auto_rotate(self):
-		#ar = self.get_accelerometer_raw()
-		#x = round(ar["x"])
-		#y = round(ar["y"])
-		#if x == -1: rot=0
-		#elif y == -1: rot=90
-		#elif x == 1: rot=180
-		#else: rot = 270
-		#self.set_rotation(rot)
+	def auto_rotate(self):
+		ar = self.get_accelerometer_raw()
+		x = round(ar["x"])
+		y = round(ar["y"])
+		if x == -1: rot=0
+		elif y == -1: rot=90
+		elif x == 1: rot=180
+		else: rot = 270
+		self.set_rotation(rot)
 
 	def update_display(self):
 		self.set_rotation(270)
@@ -340,6 +327,9 @@ class EMSenseHat(SenseHat):
 		
 		t_pixels.extend([self.OFF_PIXEL] * t_off_count)
 		
+		if len(t_pixels) > 16:
+			t_pixels = t_pixels[:16]
+		
 		t_pixels = t_pixels[::2] + t_pixels[1::2]
 
 		# Humidity Bar
@@ -359,15 +349,18 @@ class EMSenseHat(SenseHat):
 		
 		h_pixels.extend([self.OFF_PIXEL] * h_off_count)
 		
+		if len(h_pixels) > 16:
+			h_pixels = h_pixels[:16]
+		
 		h_pixels = h_pixels[::2] + h_pixels[1::2]
 		
 		pixels = []
 		
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
-		pixels.extend(t_pixels) # 16
+		pixels.extend(t_pixels)
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
-		pixels.extend(h_pixels) # 16
+		pixels.extend(h_pixels)
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		
 		self.set_pixels(pixels)
@@ -377,8 +370,8 @@ class EMSenseHat(SenseHat):
 			self.INSIDE_CALLBACK = True
 			orig_rot = self.rotation
 			self.set_rotation(0)
-			msg = "AVG: {:.1f}C {:.1f}%RH".format(self.avg_rec_temp,self.avg_rec_humid)
-			self.show_message(msg,text_colour=self.SOFT_PIXEL)
+			msg = "AVG: {:.1f}degC {:.1f}%RH".format(self.avg_rec_temp,self.avg_rec_humid)
+			self.show_message(msg,text_colour=self.SOFT_PIXEL,scroll_speed=self.scroll)
 			self.set_rotation(orig_rot)
 			self.INSIDE_CALLBACK = False
 
@@ -387,8 +380,8 @@ class EMSenseHat(SenseHat):
 			self.INSIDE_CALLBACK = True
 			orig_rot = self.rotation
 			self.set_rotation(0)
-			msg = "MIN: {:.1f}C {:.1f}%RH".format(self.max_rec_temp,self.max_rec_humid)
-			self.show_message(msg,text_colour=self.SOFT_PIXEL)
+			msg = "MAX: {:.1f}degC {:.1f}%RH".format(self.max_rec_temp,self.max_rec_humid)
+			self.show_message(msg,text_colour=self.SOFT_PIXEL,scroll_speed=self.scroll)
 			self.set_rotation(orig_rot)
 			self.INSIDE_CALLBACK = False
 	
@@ -397,8 +390,8 @@ class EMSenseHat(SenseHat):
 			self.INSIDE_CALLBACK = True
 			orig_rot = self.rotation
 			self.set_rotation(0)
-			msg = "MAX: {:.1f}C {:.1f}%RH".format(self.min_rec_temp,self.min_rec_humid)
-			self.show_message(msg,text_colour=self.SOFT_PIXEL)
+			msg = "MIN: {:.1f}degC {:.1f}%RH".format(self.min_rec_temp,self.min_rec_humid)
+			self.show_message(msg,text_colour=self.SOFT_PIXEL,scroll_speed=self.scroll)
 			self.set_rotation(orig_rot)
 			self.INSIDE_CALLBACK = False
 
@@ -407,8 +400,8 @@ class EMSenseHat(SenseHat):
 			self.INSIDE_CALLBACK = True
 			orig_rot = self.rotation
 			self.set_rotation(0)
-			msg = "NOW: {:.1f}C {:.1f}%RH".format(self.temp,self.humidity)
-			self.show_message(msg,text_colour=self.SOFT_PIXEL)
+			msg = "NOW: {:.1f}degC {:.1f}%RH".format(self.temp,self.humidity)
+			self.show_message(msg,text_colour=self.SOFT_PIXEL,scroll_speed=self.scroll)
 			self.set_rotation(orig_rot)
 			self.INSIDE_CALLBACK = False
 
@@ -419,22 +412,20 @@ class EMSenseHat(SenseHat):
 			orig_rot = self.rotation
 			self.set_rotation(0)
 			if self.temp > self.bad_temp:
-				msg.append("{:.1f}C".format(self.temp))
+				msg.append("{:.1f}degC".format(self.temp))
 			if self.humidity > self.bad_humidity:
 				msg.append("{:.1f}%RH".format(self.humidity))
 			if len(msg) > 0:
 				msg = ["ALERT!"] + msg
-				self.show_message(" ".join(msg),text_colour=self.ALERT_PIXEL)
+				self.show_message(" ".join(msg),text_colour=self.ALERT_PIXEL,scroll_speed=self.scroll)
 			self.set_rotation(orig_rot)
-			self.INSIDE_CALLBACK = False
-
-	# Neat discussion of color gradients and source of following code:
-	# http://bsou.io/posts/color-gradients-with-python
+			self.INSIDE_CALLBACK = False	
 
 	def linear_color_gradient(self, s, f, n=16):
 		'''
 		returns a gradient list of (n) colors between
 		two rgb colors (s,f).
+		See http://bsou.io/posts/color-gradients-with-python.
 		'''
 		rgb = [s]
 		# Calcuate a color at each evenly spaced value of t from 1 to n
