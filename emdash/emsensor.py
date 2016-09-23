@@ -10,11 +10,18 @@ import time
 import dateutil
 import dateutil.tz
 
+# for IP address
+import netifaces as ni
+
+
+# for button press events
+from threading import Thread
+
+# for uploads to ncmidb
 import emdash
 import emdash.config
 import emdash.handlers
-
-import jsonrpc.proxy
+#import jsonrpc.proxy
 
 EXECUTABLE = "/usr/local/bin/emdash_environment.py"
 WATCHED_FILES = [__file__,EXECUTABLE]
@@ -23,6 +30,11 @@ WATCHED_FILES_MTIMES = [(f, getmtime(f)) for f in WATCHED_FILES]
 def gettime():
     return datetime.now(dateutil.tz.gettz())
 
+def getipaddr():
+	ni.ifaddresses('eth0')
+	ip = ni.ifaddresses('eth0')[2][0]['addr']
+	return ip
+	
 def printout(msg,level="LOG"):
 	sys.stdout.write("{}\t{}\t{}\n".format(gettime(),level,msg))
 	sys.stdout.flush()
@@ -51,13 +63,11 @@ def main():
 	sense = EMSenseHat()
 	sense.clear()
 	
-	sense.stick.direction_up = sense.show_maxima # up
-	sense.stick.direction_down = sense.show_minima # left
-	sense.stick.direction_left = sense.show_current # down
-	sense.stick.direction_right = sense.show_average # right
-	
-	# this is a hack to trigger alert in background
-	sense.stick.direction_middle = sense.alert_if_bad
+	sense.stick.direction_up = sense.show_meta # up
+	sense.stick.direction_down = sense.show_ipaddr # left
+	sense.stick.direction_left = sense.show_meta # down
+	sense.stick.direction_right = sense.show_meta # right
+	sense.stick.direction_middle = sense.show_meta # push
 	
 	this = gettime()
 	
@@ -74,6 +84,8 @@ def main():
 
 	log = EMSensorLog(config,db)
 	
+	threads = []
+	
 	try:
 		while True:
 			this = gettime()
@@ -86,7 +98,8 @@ def main():
 				daily_humids.append(data[1])
 				sense.avg_rec_temp = np.mean(daily_temps)
 				sense.avg_rec_humid = np.mean(daily_humids)
-				if not sense.INSIDE_CALLBACK: # don't flicker during show_message callback
+				if not sense.INSIDE_CALLBACK: 
+					# don't flicker during show_message callback
 					sense.update_display()
 				last["second"] = this.second
 			
@@ -94,14 +107,19 @@ def main():
 			if this.minute != last["minute"]:
 				avg = np.mean(samples,axis=0)
 				log.write(avg)
-				# this is a hack to trigger alert in background
 				if not sense.INSIDE_CALLBACK:
-					sense.alert_if_bad(InputEvent(time.time(),"push","pressed"))
+					t = Thread(target=sense.alert_if_bad)
+					t.setDaemon(True)
+					threads.append(t)
+					t.start()
 				last["minute"] = this.minute
 			
 			# Every day
 			if this.day != last["day"]:
-				log.upload(db)
+				t = Thread(target=log.upload,args=(db,))
+				t.setDaemon(True)
+				threads.append(t)
+				t.start()
 				sense.reset_meta()
 				log = EMSensorLog(config,db)
 				daily_temps = []
@@ -117,8 +135,9 @@ def main():
 					os.execv(EXECUTABLE,sys.argv)
 	
 	except KeyboardInterrupt:
+		for i in range(len(threads)):
+			threads[i].join()
 		sense.clear()
-
 
 class EMSensorLog:
 
@@ -162,7 +181,6 @@ class EMSensorLog:
 		room = db.record.get(config.get("room_id"))
 		
 		rec = {}
-		
 		rec[u'parents'] = room['name']
 		rec[u'groups'] = room['groups']
 		rec[u'permissions'] = room['permissions']
@@ -180,22 +198,26 @@ class EMSensorLog:
 		rec[u'pressure_ambient_high'] = round(p_high,1)
 		rec[u'pressure_ambient_avg'] = round(p_avg,1)
 		rec[u'comments'] = ""
-		
 		rec.update()
 		
-		try:
-			record = db.record.put(rec)
-			printout("Record uploaded successfully!")
-		except Exception, e:
-			printout("Failed to upload record. Exception: {}".format(e),level="ERROR")
-		
-		try:
-			self.ah.target = record["name"]
-			record = self.ah.upload()
-			printout("{} was uploaded successfully".format(self.ah.name))
-		except Exception, e:
-			printout("Failed to upload file ({}). Exception: {}".format(self.ah.name,e),level="ERROR")
-
+		uploaded = False
+		while uploaded == False:
+			try:
+				record = db.record.put(rec)
+				printout("Record uploaded successfully!")
+				proceed = True
+			except Exception, e:
+				printout("Failed to upload record. Exception: {}".format(e),level="ERROR")
+				proceed = False
+			
+			if proceed:
+				try:
+					self.ah.target = record["name"]
+					record = self.ah.upload()
+					printout("{} was uploaded successfully".format(self.ah.name))
+					uploaded = True
+				except Exception, e:
+					printout("Failed to upload file ({}). Exception: {}".format(self.ah.name,e),level="ERROR")
 
 class EMSenseHat(SenseHat):
 	
@@ -365,12 +387,19 @@ class EMSenseHat(SenseHat):
 		
 		self.set_pixels(pixels)
 	
+	def show_meta(self,event):
+		if event.action == "pressed":
+			self.show_current(event)
+			self.show_average(event)
+			self.show_maxima(event)
+			self.show_minima(event)
+	
 	def show_average(self,event):
 		if event.action == "pressed":
 			self.INSIDE_CALLBACK = True
 			orig_rot = self.rotation
 			self.set_rotation(0)
-			msg = "AVG: {:.1f}degC {:.1f}%RH".format(self.avg_rec_temp,self.avg_rec_humid)
+			msg = "AVG: {:.1f}C {:.1f}%H".format(self.avg_rec_temp,self.avg_rec_humid)
 			self.show_message(msg,text_colour=self.SOFT_PIXEL,scroll_speed=self.scroll)
 			self.set_rotation(orig_rot)
 			self.INSIDE_CALLBACK = False
@@ -380,7 +409,7 @@ class EMSenseHat(SenseHat):
 			self.INSIDE_CALLBACK = True
 			orig_rot = self.rotation
 			self.set_rotation(0)
-			msg = "MAX: {:.1f}degC {:.1f}%RH".format(self.max_rec_temp,self.max_rec_humid)
+			msg = "MAX: {:.1f}C {:.1f}%H".format(self.max_rec_temp,self.max_rec_humid)
 			self.show_message(msg,text_colour=self.SOFT_PIXEL,scroll_speed=self.scroll)
 			self.set_rotation(orig_rot)
 			self.INSIDE_CALLBACK = False
@@ -390,7 +419,7 @@ class EMSenseHat(SenseHat):
 			self.INSIDE_CALLBACK = True
 			orig_rot = self.rotation
 			self.set_rotation(0)
-			msg = "MIN: {:.1f}degC {:.1f}%RH".format(self.min_rec_temp,self.min_rec_humid)
+			msg = "MIN: {:.1f}C {:.1f}%H".format(self.min_rec_temp,self.min_rec_humid)
 			self.show_message(msg,text_colour=self.SOFT_PIXEL,scroll_speed=self.scroll)
 			self.set_rotation(orig_rot)
 			self.INSIDE_CALLBACK = False
@@ -400,26 +429,35 @@ class EMSenseHat(SenseHat):
 			self.INSIDE_CALLBACK = True
 			orig_rot = self.rotation
 			self.set_rotation(0)
-			msg = "NOW: {:.1f}degC {:.1f}%RH".format(self.temp,self.humidity)
+			msg = "NOW: {:.1f}C {:.1f}%H".format(self.temp,self.humidity)
 			self.show_message(msg,text_colour=self.SOFT_PIXEL,scroll_speed=self.scroll)
 			self.set_rotation(orig_rot)
 			self.INSIDE_CALLBACK = False
 
-	def alert_if_bad(self,event):
+	def show_ipaddr(self,event):
 		if event.action == "pressed":
 			self.INSIDE_CALLBACK = True
-			msg = []
 			orig_rot = self.rotation
 			self.set_rotation(0)
-			if self.temp > self.bad_temp:
-				msg.append("{:.1f}degC".format(self.temp))
-			if self.humidity > self.bad_humidity:
-				msg.append("{:.1f}%RH".format(self.humidity))
-			if len(msg) > 0:
-				msg = ["ALERT!"] + msg
-				self.show_message(" ".join(msg),text_colour=self.ALERT_PIXEL,scroll_speed=self.scroll)
+			ip = getipaddr()
+			self.show_message("IP: {}".format(ip),text_colour=self.SOFT_PIXEL,scroll_speed=self.scroll)
 			self.set_rotation(orig_rot)
-			self.INSIDE_CALLBACK = False	
+			self.INSIDE_CALLBACK = False
+
+	def alert_if_bad(self):
+		self.INSIDE_CALLBACK = True
+		msg = []
+		orig_rot = self.rotation
+		self.set_rotation(0)
+		if self.temp > self.bad_temp:
+			msg.append("{:.1f}C".format(self.temp))
+		if self.humidity > self.bad_humidity:
+			msg.append("{:.1f}%H".format(self.humidity))
+		if len(msg) > 0:
+			msg = ["ALERT!"] + msg
+			self.show_message(" ".join(msg),text_colour=self.ALERT_PIXEL,scroll_speed=self.scroll)
+		self.set_rotation(orig_rot)
+		self.INSIDE_CALLBACK = False	
 
 	def linear_color_gradient(self, s, f, n=16):
 		'''
