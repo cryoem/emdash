@@ -98,7 +98,7 @@ def main():
 				daily_humids.append(data[1])
 				sense.avg_rec_temp = np.mean(daily_temps)
 				sense.avg_rec_humid = np.mean(daily_humids)
-				if not sense.INSIDE_CALLBACK: 
+				if not sense.INSIDE_CALLBACK:
 					# don't flicker during show_message callback
 					sense.update_display()
 				last["second"] = this.second
@@ -108,6 +108,7 @@ def main():
 				avg = np.mean(samples,axis=0)
 				log.write(avg)
 				if not sense.INSIDE_CALLBACK:
+					# don't run alert overtop of other messages
 					t = Thread(target=sense.alert_if_bad)
 					t.setDaemon(True)
 					threads.append(t)
@@ -389,10 +390,11 @@ class EMSenseHat(SenseHat):
 	
 	def show_meta(self,event):
 		if event.action == "pressed":
-			self.show_current(event)
-			self.show_average(event)
-			self.show_maxima(event)
-			self.show_minima(event)
+			if not self.INSIDE_CALLBACK:
+				self.show_current(event)
+				self.show_average(event)
+				self.show_maxima(event)
+				self.show_minima(event)
 	
 	def show_average(self,event):
 		if event.action == "pressed":
@@ -436,29 +438,31 @@ class EMSenseHat(SenseHat):
 
 	def show_ipaddr(self,event):
 		if event.action == "pressed":
-			self.INSIDE_CALLBACK = True
-			orig_rot = self.rotation
-			self.set_rotation(0)
-			ip = getipaddr()
-			self.show_message("IP: {}".format(ip),text_colour=self.SOFT_PIXEL,scroll_speed=self.scroll)
-			self.set_rotation(orig_rot)
-			self.INSIDE_CALLBACK = False
+			if not self.INSIDE_CALLBACK:
+				self.INSIDE_CALLBACK = True
+				orig_rot = self.rotation
+				self.set_rotation(0)
+				ip = getipaddr()
+				self.show_message("IP: {}".format(ip),text_colour=self.SOFT_PIXEL,scroll_speed=self.scroll)
+				self.set_rotation(orig_rot)
+				self.INSIDE_CALLBACK = False
 
 	def alert_if_bad(self):
-		self.INSIDE_CALLBACK = True
-		msg = []
-		orig_rot = self.rotation
-		self.set_rotation(0)
-		if self.temp > self.bad_temp:
-			msg.append("{:.1f}C".format(self.temp))
-		if self.humidity > self.bad_humidity:
-			msg.append("{:.1f}%H".format(self.humidity))
-		if len(msg) > 0:
-			msg = ["ALERT!"] + msg
-			self.show_message(" ".join(msg),text_colour=self.ALERT_PIXEL,scroll_speed=self.scroll)
-		self.set_rotation(orig_rot)
-		self.INSIDE_CALLBACK = False	
-
+		if not self.INSIDE_CALLBACK:
+			self.INSIDE_CALLBACK = True
+			msg = []
+			orig_rot = self.rotation
+			self.set_rotation(0)
+			if self.temp > self.bad_temp:
+				msg.append("{:.1f}C".format(self.temp))
+			if self.humidity > self.bad_humidity:
+				msg.append("{:.1f}%H".format(self.humidity))
+			if len(msg) > 0:
+				msg = ["ALERT!"] + msg
+				self.show_message(" ".join(msg),text_colour=self.ALERT_PIXEL,scroll_speed=self.scroll)
+			self.set_rotation(orig_rot)
+			self.INSIDE_CALLBACK = False	
+	
 	def linear_color_gradient(self, s, f, n=16):
 		'''
 		returns a gradient list of (n) colors between
