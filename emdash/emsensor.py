@@ -102,8 +102,7 @@ def main():
 				daily_humids.append(data[1])
 				sense.avg_rec_temp = np.mean(daily_temps)
 				sense.avg_rec_humid = np.mean(daily_humids)
-				if not sense.INSIDE_CALLBACK:
-					# don't flicker during show_message callback
+				if not sense.INSIDE_CALLBACK: # don't flicker during show_message callback
 					sense.update_display()
 				last["second"] = this.second
 
