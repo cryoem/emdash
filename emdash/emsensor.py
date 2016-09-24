@@ -112,7 +112,6 @@ def main():
 				avg = np.mean(samples,axis=0)
 				log.write(avg)
 				if not sense.INSIDE_CALLBACK:
-					# don't run alert overtop of other messages
 					t = Thread(target=sense.alert_if_bad)
 					#t.setDaemon(True)
 					threads.append(t)
@@ -121,10 +120,7 @@ def main():
 
 			# Every day
 			if this.day != last["day"]:
-				t = Thread(target=log.upload,args=(db,))
-				#t.setDaemon(True)
-				threads.append(t)
-				t.start()
+				log.upload(db)
 				sense.reset_meta()
 				log = EMSensorLog(config,db)
 				daily_temps = []
@@ -207,24 +203,17 @@ class EMSensorLog:
 		rec[u'comments'] = ""
 		rec.update()
 
-		uploaded = False
-		while uploaded == False:
-			try:
-				record = db.record.put(rec)
-				printout("Record uploaded successfully!")
-				proceed = True
-			except Exception, e:
-				printout("Failed to upload record. Exception: {}".format(e),level="ERROR")
-				proceed = False
-
-			if proceed:
-				try:
-					self.ah.target = record["name"]
-					record = self.ah.upload()
-					printout("{} was uploaded successfully".format(self.ah.name))
-					uploaded = True
-				except Exception, e:
-					printout("Failed to upload file ({}). Exception: {}".format(self.ah.name,e),level="ERROR")
+		try:
+			record = db.record.put(rec)
+			printout("Record uploaded successfully!")
+		except Exception, e:
+			printout("Failed to upload record. Exception: {}".format(e),level="ERROR")
+		try:
+			self.ah.target = record["name"]
+			record = self.ah.upload()
+			printout("{} was uploaded successfully".format(self.ah.name))
+		except Exception, e:
+			printout("Failed to upload file ({}). Exception: {}".format(self.ah.name,e),level="ERROR")
 
 class EMSenseHat(SenseHat):
 
