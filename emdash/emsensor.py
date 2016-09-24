@@ -140,6 +140,8 @@ def main():
 					os.execv(EXECUTABLE,sys.argv)
 
 	except KeyboardInterrupt:
+		while sense.INSIDE_CALLBACK:
+			time.sleep(1)
 		for i in range(len(threads)):
 			threads[i].join()
 		sense.clear()
