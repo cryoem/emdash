@@ -113,14 +113,13 @@ def main():
 				log.write(avg)
 				if not sense.INSIDE_CALLBACK:
 					t = Thread(target=sense.alert_if_bad)
-					#t.setDaemon(True)
 					threads.append(t)
 					t.start()
 				last["minute"] = this.minute
 
 			# Every day
 			if this.day != last["day"]:
-				log.upload(db)
+				log.upload(db) 
 				sense.reset_meta()
 				log = EMSensorLog(config,db)
 				daily_temps = []
@@ -206,14 +205,17 @@ class EMSensorLog:
 		try:
 			record = db.record.put(rec)
 			printout("Record uploaded successfully!")
+			record_uploaded = True
 		except Exception, e:
+			record_uploaded = False
 			printout("Failed to upload record. Exception: {}".format(e),level="ERROR")
-		try:
-			self.ah.target = record["name"]
-			record = self.ah.upload()
-			printout("{} was uploaded successfully".format(self.ah.name))
-		except Exception, e:
-			printout("Failed to upload file ({}). Exception: {}".format(self.ah.name,e),level="ERROR")
+		if record_uploaded:
+			try:
+				self.ah.target = record["name"]
+				record = self.ah.upload()
+				printout("{} was uploaded successfully".format(self.ah.name))
+			except Exception, e:
+				printout("Failed to upload file ({}). Exception: {}".format(self.ah.name,e),level="ERROR")
 
 class EMSenseHat(SenseHat):
 
