@@ -18,7 +18,6 @@ import dateutil.tz
 # for IP address
 import netifaces as ni
 
-
 # for button press events
 from threading import Thread
 
@@ -115,7 +114,7 @@ def main():
 				if not sense.INSIDE_CALLBACK:
 					# don't run alert overtop of other messages
 					t = Thread(target=sense.alert_if_bad)
-					t.setDaemon(True)
+					#t.setDaemon(True)
 					threads.append(t)
 					t.start()
 				last["minute"] = this.minute
@@ -123,7 +122,7 @@ def main():
 			# Every day
 			if this.day != last["day"]:
 				t = Thread(target=log.upload,args=(db,))
-				t.setDaemon(True)
+				#t.setDaemon(True)
 				threads.append(t)
 				t.start()
 				sense.reset_meta()
