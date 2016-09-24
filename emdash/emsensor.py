@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+# Author: James Michael Bell, BCM 2016 (jmbell@bcm.edu)
+
+# To find pis on network, I recommend nmap using the following syntax:
+# nmap -sP 10.10.0-13.1/24 | grep raspberrypi
+
 from sense_hat import SenseHat, InputEvent
 from datetime import datetime
 import os
@@ -34,7 +39,7 @@ def getipaddr():
 	ni.ifaddresses('eth0')
 	ip = ni.ifaddresses('eth0')[2][0]['addr']
 	return ip
-	
+
 def printout(msg,level="LOG"):
 	sys.stdout.write("{}\t{}\t{}\n".format(gettime(),level,msg))
 	sys.stdout.flush()
@@ -42,7 +47,7 @@ def printout(msg,level="LOG"):
 def main():
 	ns = emdash.config.setconfig()
 	config = emdash.config.Config()
-	
+
 	printout("Logging into {} as {}".format(config.get("host"),config.get("username")))
 	logged_in = False
 	while logged_in is False:
@@ -55,22 +60,22 @@ def main():
 			printout("Log in failed. ({}). Will try again in 10 seconds.".format(e),level="WARNING")
 			logged_in = False
 			time.sleep(10)
-	
+
 	room = db.record.get(config.get("room_id"))
 	msg = "Creating {} records for {} (Record #{})"
 	printout(msg.format(config.get("session_protocol"),room["room_name"],config.get("room_id")))
 
 	sense = EMSenseHat()
 	sense.clear()
-	
+
 	sense.stick.direction_up = sense.show_meta # up
 	sense.stick.direction_down = sense.show_ipaddr # left
 	sense.stick.direction_left = sense.show_meta # down
 	sense.stick.direction_right = sense.show_meta # right
 	sense.stick.direction_middle = sense.show_meta # push
-	
+
 	this = gettime()
-	
+
 	last = {}
 	last["second"] = int(this.second)
 	last["minute"] = int(this.minute)
@@ -78,18 +83,18 @@ def main():
 	last["day"] = int(this.day)
 
 	samples = []
-	
+
 	daily_temps = []
 	daily_humids = []
 
 	log = EMSensorLog(config,db)
-	
+
 	threads = []
-	
+
 	try:
 		while True:
 			this = gettime()
-			
+
 			# Every second
 			if this.second != last["second"]:
 				data = sense.get_environment()
@@ -102,7 +107,7 @@ def main():
 					# don't flicker during show_message callback
 					sense.update_display()
 				last["second"] = this.second
-			
+
 			# Every minute
 			if this.minute != last["minute"]:
 				avg = np.mean(samples,axis=0)
@@ -114,7 +119,7 @@ def main():
 					threads.append(t)
 					t.start()
 				last["minute"] = this.minute
-			
+
 			# Every day
 			if this.day != last["day"]:
 				t = Thread(target=log.upload,args=(db,))
@@ -126,7 +131,7 @@ def main():
 				daily_temps = []
 				daily_humids = []
 				last["day"] = this.day
-			
+
 			# Every hour
 			if this.hour != last["hour"]:
 				last["hour"] = this.hour
@@ -134,7 +139,7 @@ def main():
 			for f, mtime in WATCHED_FILES_MTIMES:
 				if getmtime(f) != mtime:
 					os.execv(EXECUTABLE,sys.argv)
-	
+
 	except KeyboardInterrupt:
 		for i in range(len(threads)):
 			threads[i].join()
@@ -159,7 +164,7 @@ class EMSensorLog:
 			dat = ",".join([str(round(val,rnd)) for val in data])
 			out = "{},{}\n".format(n,dat)
 			f.write(out)
-	
+
 	def read(self):
 		data = []
 		with open(self.ah.name,"r") as f:
@@ -168,19 +173,19 @@ class EMSensorLog:
 					line = l.strip().split(",")
 					data.append(line[1:])
 		return np.asarray(data).astype(float)
-	
+
 	def upload(self,db):
 		printout("Uploading...")
 		self.end_date = gettime()
 		data = self.read()
-		
+
 		t_high,h_high,p_high = np.max(data,axis=0)
 		t_low,h_low,p_low = np.min(data,axis=0)
 		t_avg,h_avg,p_avg = np.mean(data,axis=0)
-		
+
 		config = emdash.config.Config()
 		room = db.record.get(config.get("room_id"))
-		
+
 		rec = {}
 		rec[u'parents'] = room['name']
 		rec[u'groups'] = room['groups']
@@ -200,7 +205,7 @@ class EMSensorLog:
 		rec[u'pressure_ambient_avg'] = round(p_avg,1)
 		rec[u'comments'] = ""
 		rec.update()
-		
+
 		uploaded = False
 		while uploaded == False:
 			try:
@@ -210,7 +215,7 @@ class EMSensorLog:
 			except Exception, e:
 				printout("Failed to upload record. Exception: {}".format(e),level="ERROR")
 				proceed = False
-			
+
 			if proceed:
 				try:
 					self.ah.target = record["name"]
@@ -221,9 +226,9 @@ class EMSensorLog:
 					printout("Failed to upload file ({}). Exception: {}".format(self.ah.name,e),level="ERROR")
 
 class EMSenseHat(SenseHat):
-	
+
 	INSIDE_CALLBACK=False
-	
+
 	OFF_PIXEL=[0,0,0]
 	MAX_PIXEL = [50,50,50]
 	AVG_PIXEL = [50,0,50]
@@ -233,7 +238,7 @@ class EMSenseHat(SenseHat):
 	BAD_PIXEL = [100,0,0]
 	ALERT_PIXEL = [255,255,255]
 	SOFT_PIXEL = [128,128,128]
-	
+
 	pix_grad = [LOW_PIXEL,GOOD_PIXEL,WARN_PIXEL,BAD_PIXEL,BAD_PIXEL]
 
 	bar_npix = 16
@@ -241,51 +246,51 @@ class EMSenseHat(SenseHat):
 	max_temp = 30.0
 	min_temp = 15.0
 	temp_range = max_temp-min_temp
-	
+
 	good_temp = 18.0
 	warn_temp = 21.5
 	bad_temp = 22.0
-	
+
 	t_weights = []
 	t_weights.append(int(bar_npix*(good_temp-min_temp)/temp_range))
 	t_weights.append(int(bar_npix*(warn_temp-min_temp)/temp_range)-sum(t_weights)-1)
 	t_weights.append(int(bar_npix*(bad_temp-min_temp)/temp_range)-sum(t_weights)+3)
 	t_weights.append(bar_npix-sum(t_weights))
 	t_weights.append(1) # dummy
-	
+
 	max_rec_temp = 0.
 	min_rec_temp = 100.
 	avg_rec_temp = 0.
 	nsamples_temp = 0
-	
+
 	good_humidity = 20.0
 	warn_humidity = 31.0
 	bad_humidity = 32.0
-	
+
 	max_humid = 50.0
 	min_humid = 0.0
 	humid_range = max_humid - min_humid
-	
+
 	h_weights = []
 	h_weights.append(int(bar_npix*(good_humidity-min_humid)/humid_range))
 	h_weights.append(int(bar_npix*(warn_humidity-min_humid)/humid_range)-sum(h_weights)-1)
 	h_weights.append(int(bar_npix*(bad_humidity-min_humid)/humid_range)-sum(h_weights)+3)
 	h_weights.append(bar_npix-sum(h_weights))
 	h_weights.append(1) # dummy
-	
+
 	max_rec_humid = 0.
 	min_rec_humid = 100.
 	avg_rec_humid = 0.
 	nsamples_humid = 0
-	
+
 	scroll = 0.08
-	
+
 	def get_environment(self,rnd=1):
 		T = round(self.temperature,rnd)
 		H = round(self.humidity,rnd)
 		P = round(self.pressure,rnd)
 		return [T,H,P]
-	
+
 	def reset_meta(self):
 		self.max_rec_humid = 0.
 		self.max_rec_temp = 0.
@@ -293,17 +298,17 @@ class EMSenseHat(SenseHat):
 		self.min_rec_humid = 100.
 		self.avg_rec_temp = 0.
 		self.avg_rec_humid = 0.
-	
+
 	def update_average_temp(self,t_new):
 		t_old = self.avg_rec_temp * self.nsamples_temp
 		self.nsamples_temp += 1
 		self.avg_rec_temp = (t_old + t_new) / self.nsamples_temp
-	
+
 	def update_average_humid(self,h_new):
 		h_old = self.avg_rec_humid * self.nsamples_humid
 		self.nsamples_humid += 1
 		self.avg_rec_humid = (h_old + h_new) / self.nsamples_humid
-	
+
 	def auto_rotate(self):
 		ar = self.get_accelerometer_raw()
 		x = round(ar["x"])
@@ -316,26 +321,26 @@ class EMSenseHat(SenseHat):
 
 	def update_display(self):
 		self.set_rotation(270)
-		
+
 		temp, humid, press = self.get_environment()
-		
+
 		# update temperature meta
 		if temp > self.max_rec_temp:
 			self.max_rec_temp = temp
 		if temp < self.min_rec_temp:
 			self.min_rec_temp = temp
 		self.update_average_temp(temp)
-		
+
 		# update humidity meta
 		if humid > self.max_rec_humid:
 			self.max_rec_humid = humid
 		if humid < self.min_rec_humid:
 			self.min_rec_humid = humid
 		self.update_average_humid(humid)
-		
+
 		# Temperature Bar
 		t_pixels = []
-		
+
 		if temp >= self.max_temp:
 			t_on_count = self.bar_npix
 		elif temp < self.min_temp:
@@ -344,20 +349,20 @@ class EMSenseHat(SenseHat):
 			norm_t = (temp-self.min_temp)/self.temp_range
 			t_on_count = int(self.bar_npix*norm_t)
 		t_off_count = self.bar_npix-t_on_count
-		
+
 		t_grad = self.polylinear_color_gradient(self.pix_grad,self.t_weights)
 		t_pixels.extend(t_grad[:t_on_count])
-		
+
 		t_pixels.extend([self.OFF_PIXEL] * t_off_count)
-		
+
 		if len(t_pixels) > 16:
 			t_pixels = t_pixels[:16]
-		
+
 		t_pixels = t_pixels[::2] + t_pixels[1::2]
 
 		# Humidity Bar
 		h_pixels = []
-		
+
 		if humid >= self.max_humid:
 			h_on_count = self.bar_npix
 		elif humid < self.min_humid:
@@ -366,28 +371,28 @@ class EMSenseHat(SenseHat):
 			norm_h = (humid-self.min_humid)/self.humid_range
 			h_on_count = int(self.bar_npix*norm_h)
 		h_off_count = self.bar_npix-h_on_count
-		
+
 		h_grad = self.polylinear_color_gradient(self.pix_grad,self.h_weights)
 		h_pixels.extend(h_grad[:h_on_count])
-		
+
 		h_pixels.extend([self.OFF_PIXEL] * h_off_count)
-		
+
 		if len(h_pixels) > 16:
 			h_pixels = h_pixels[:16]
-		
+
 		h_pixels = h_pixels[::2] + h_pixels[1::2]
-		
+
 		pixels = []
-		
+
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		pixels.extend(t_pixels)
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
 		pixels.extend(h_pixels)
 		pixels.extend([self.OFF_PIXEL for i in range(8)])
-		
+
 		self.set_pixels(pixels)
-	
+
 	def show_meta(self,event):
 		if event.action == "pressed":
 			if not self.INSIDE_CALLBACK:
@@ -395,7 +400,7 @@ class EMSenseHat(SenseHat):
 				self.show_average(event)
 				self.show_maxima(event)
 				self.show_minima(event)
-	
+
 	def show_average(self,event):
 		if event.action == "pressed":
 			self.INSIDE_CALLBACK = True
@@ -415,7 +420,7 @@ class EMSenseHat(SenseHat):
 			self.show_message(msg,text_colour=self.SOFT_PIXEL,scroll_speed=self.scroll)
 			self.set_rotation(orig_rot)
 			self.INSIDE_CALLBACK = False
-	
+
 	def show_minima(self,event):
 		if event.action == "pressed":
 			self.INSIDE_CALLBACK = True
@@ -461,8 +466,8 @@ class EMSenseHat(SenseHat):
 				msg = ["ALERT!"] + msg
 				self.show_message(" ".join(msg),text_colour=self.ALERT_PIXEL,scroll_speed=self.scroll)
 			self.set_rotation(orig_rot)
-			self.INSIDE_CALLBACK = False	
-	
+			self.INSIDE_CALLBACK = False
+
 	def linear_color_gradient(self, s, f, n=16):
 		'''
 		returns a gradient list of (n) colors between
