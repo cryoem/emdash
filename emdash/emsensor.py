@@ -88,7 +88,7 @@ def main():
 
 	log = EMSensorLog(config,db)
 
-	threads = []
+	#threads = []
 
 	try:
 		while True:
@@ -112,7 +112,7 @@ def main():
 				log.write(avg)
 				if not sense.INSIDE_CALLBACK:
 					t = Thread(target=sense.alert_if_bad)
-					threads.append(t)
+					#threads.append(t)
 					t.start()
 				last["minute"] = this.minute
 
@@ -136,8 +136,8 @@ def main():
 	except KeyboardInterrupt:
 		while sense.INSIDE_CALLBACK:
 			time.sleep(1)
-		for i in range(len(threads)):
-			threads[i].join()
+		#for i in range(len(threads)):
+		#	threads[i].join()
 		sense.clear()
 
 class EMSensorLog:
