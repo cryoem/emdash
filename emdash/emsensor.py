@@ -2,7 +2,7 @@
 
 # Author: James Michael Bell, BCM 2016 (jmbell@bcm.edu)
 
-# To find pis on network, I recommend nmap using the following syntax:
+# To find pis on network, I recommend nmap using the following command:
 # nmap -sP 10.10.0-13.1/24 | grep raspberrypi
 
 from sense_hat import SenseHat, InputEvent
@@ -95,7 +95,7 @@ def main():
 			this = gettime()
 
 			# Every second
-			if this.second != last["second"]:
+			if int(this.second) != last["second"]:
 				data = sense.get_environment()
 				samples.append(data)
 				daily_temps.append(data[0])
@@ -104,31 +104,31 @@ def main():
 				sense.avg_rec_humid = np.mean(daily_humids)
 				if not sense.INSIDE_CALLBACK: # don't flicker during show_message callback
 					sense.update_display()
-				last["second"] = this.second
+				last["second"] = int(this.second)
 
 			# Every minute
-			if this.minute != last["minute"]:
+			if int(this.minute) != last["minute"]:
 				avg = np.mean(samples,axis=0)
 				log.write(avg)
 				if not sense.INSIDE_CALLBACK:
 					t = Thread(target=sense.alert_if_bad)
 					#threads.append(t)
 					t.start()
-				last["minute"] = this.minute
+				last["minute"] = int(this.minute)
 
 			# Every day
-			if this.day != last["day"]:
-				log.upload(db) 
+			if int(this.day) != last["day"]:
+				log.upload(db)
 				sense.reset_meta()
 				log = EMSensorLog(config,db)
 				daily_temps = []
 				daily_humids = []
-				last["day"] = this.day
+				last["day"] = int(this.day)
 
 			# Every hour
-			if this.hour != last["hour"]:
-				last["hour"] = this.hour
-
+			if int(this.hour) != last["hour"]:
+				last["hour"] = int(this.hour)
+			
 			for f, mtime in WATCHED_FILES_MTIMES:
 				if getmtime(f) != mtime:
 					os.execv(EXECUTABLE,sys.argv)
